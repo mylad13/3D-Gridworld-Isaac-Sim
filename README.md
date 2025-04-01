@@ -69,7 +69,7 @@ git clone git@github.com:kylrw/turtle_navigation.git
 
 3. Build custom ROS2 Libraries
 ```
-cd ~/ros2_ws/src
+cd ~/ros2_ws/
 colcon build --symlink-install
 ```
 
@@ -78,6 +78,11 @@ colcon build --symlink-install
 3. Clone this repository to your workspace
 ```
 git clone git@github.com:kylrw/3D-Gridworld-Isaac-Sim.git
+```
+
+If using a docker-container to run ROS2 humble, make sure to set the FASTRTPS_DEFAULT_PROFILES_FILE environment variable. The fastdds.xml file can be found in [Isaac Sim ROS workspaces](https://docs.omniverse.nvidia.com/isaacsim/latest/installation/install_ros.html#isaac-ros-workspace).
+```
+export FASTRTPS_DEFAULT_PROFILES_FILE=~/ros2_ws/fastdds.xml
 ```
 
 # Running the Multi-Robot SLAM

@@ -6,7 +6,7 @@ import os
 
 class PoseSubscriber(Node):
     def __init__(self, namespace: str):
-        super().__init__('pose_subscriber')
+        super().__init__(f'pose_subscriber_{namespace}')
         self.namespace = namespace
         self.subscription = self.create_subscription(
             PoseWithCovarianceStamped,

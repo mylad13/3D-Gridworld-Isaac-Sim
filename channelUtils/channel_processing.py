@@ -7,6 +7,7 @@ import numpy as np
 import yaml
 import subprocess
 from typing import Optional
+import matplotlib.pyplot as plt
 
 def run_ros_command(command, log_file):
     """Run a ROS 2 command in a separate process"""
@@ -28,25 +29,37 @@ def resize_image(img: np.ndarray, size: int) -> np.ndarray:
 
     cropped = img[top_left[0]:bottom_right[0] + 1, top_left[1]:bottom_right[1] + 1]
 
-    # If the map is smaller than the desired size, add padding (unexplored cells)
-    if cropped.shape[0] < size or cropped.shape[1] < size:
-        print(f"Warning: Map size ({cropped.shape}) is smaller than the desired size ({size}). Padding...")
-        padded = np.full((size, size), unknown_val, dtype=np.uint8)
-        if cropped.shape[0] < size:
-            top_pad = (size - cropped.shape[0]) // 2
-            bottom_pad = size - cropped.shape[0] - top_pad
-            cropped = np.pad(cropped, ((top_pad, bottom_pad), (0, 0)), mode='constant', constant_values=unknown_val)
-        if cropped.shape[1] < size:
-            left_pad = (size - cropped.shape[1]) // 2
-            right_pad = size - cropped.shape[1] - left_pad
-            cropped = np.pad(cropped, ((0, 0), (left_pad, right_pad)), mode='constant', constant_values=unknown_val)
+    # # If the map is smaller than the desired size, add padding (unexplored cells)
+    # if cropped.shape[0] < size or cropped.shape[1] < size:
+    #     print(f"Warning: Map size ({cropped.shape}) is smaller than the desired size ({size}). Padding...")
+    #     padded = np.full((size, size), unknown_val, dtype=np.uint8)
+    #     if cropped.shape[0] < size:
+    #         top_pad = (size - cropped.shape[0]) // 2
+    #         bottom_pad = size - cropped.shape[0] - top_pad
+    #         cropped = np.pad(cropped, ((top_pad, bottom_pad), (0, 0)), mode='constant', constant_values=unknown_val)
+    #     if cropped.shape[1] < size:
+    #         left_pad = (size - cropped.shape[1]) // 2
+    #         right_pad = size - cropped.shape[1] - left_pad
+    #         cropped = np.pad(cropped, ((0, 0), (left_pad, right_pad)), mode='constant', constant_values=unknown_val)
 
-    # If the map is larger, throw a warning and crop it
-    if cropped.shape[0] > size or cropped.shape[1] > size:
-        #print(f"Warning: Map size ({cropped.shape}) is larger than the desired size ({size}). Cropping...")
+    # # If the map is larger, throw a warning and crop it
+    # if cropped.shape[0] > size or cropped.shape[1] > size:
+    #     #print(f"Warning: Map size ({cropped.shape}) is larger than the desired size ({size}). Cropping...")
+    #     cropped = cropped[:size, :size]
+
+    # return cropped
+
+    h, w = cropped.shape
+    if h > size or w > size:
+        print(f"Warning: Cropped map size ({h}, {w}) is larger than desired size ({size}). Cropping...")
         cropped = cropped[:size, :size]
+        h, w = cropped.shape
 
-    return cropped
+    # Create empty grey canvas and place cropped image in top-left
+    padded = np.full((size, size), unknown_val, dtype=np.uint8)
+    padded[:h, :w] = cropped
+
+    return padded
     
 def to_occupancy_map(img: np.ndarray, size: int = 30) -> np.ndarray:
     """
@@ -92,8 +105,8 @@ def to_single_pose_map(x: int, y: int, size: Optional[int] = 30) -> None:
 
 def to_multi_pose_map(coordinates: list[tuple[int, int]], size) -> None:
     """
-    Converts a map image to a rescuer pose map.
-    0 for every pixel except the rescuer's position, which is 255.
+    Converts a map image to a agent pose maps.
+    0 for every pixel except agent positions, which is 255.
     """
     map = np.zeros((size, size), dtype=np.uint8)
     for x, y in coordinates:
@@ -187,6 +200,61 @@ def isolateLocalMap(x: int, y: int, img: np.ndarray) -> np.ndarray:
         local_map = np.pad(local_map, ((0, 0), (left_pad, right_pad)), mode='constant', constant_values=205)
 
     return local_map
+
+def get_macro_observations(robot_ids: list[str], map_size, target_pos) -> dict[str, dict[str, np.ndarray]]:
+    """
+    Get macro-observations for all robots.
+    robot_ids: List of robot namespaces
+    map_size: (width, height) of the map
+    """
+    macro_observations = {}
+    robot_positions = {}
+    rescuers = []
+    explorers = []
+    for robot_id in robot_ids:
+        # Identify the robot type
+        if "rescuer" in robot_id:
+            rescuers.append(robot_id)
+        elif "explorer" in robot_id:
+            explorers.append(robot_id)
+        else:
+            raise ValueError(f"Unknown robot type: {robot_id}")
+        
+        # Get the robot's pose
+        x, y = getPose(robot_id)
+        robot_positions[robot_id] = (x, y)
+
+
+
+    for robot_id in robot_ids:
+        # Load the map image
+        img = getMap(robot_id, map_size[0])
+
+        # Convert the map image to the different global channels: 0-explored, 1-occupancy, 2-target, 3-ego_pose, 4-rescuer_robots_pose, 5-explorer_robots_pose
+        exploration_map = to_exploration_map(img, map_size[0])
+        
+        occupancy_map = to_occupancy_map(img, map_size[0])
+        
+        if exploration_map[target_pos[1], target_pos[0]] == 255:
+            target_map = to_single_pose_map(target_pos[0], target_pos[1], map_size[0])
+        else:
+            target_map = np.zeros((map_size[0], map_size[1]), dtype=np.uint8)
+        
+        ego_pose_map = to_single_pose_map(x, y, map_size[0])
+        
+        rescuer_positions = [robot_positions[rescuer] for rescuer in rescuers]
+        rescuer_map = to_multi_pose_map(rescuer_positions, map_size[0])
+        
+        explorer_positions = [robot_positions[explorer] for explorer in explorers]
+        explorer_map = to_multi_pose_map(explorer_positions, map_size[0])
+        
+        print("exploration_map", exploration_map)
+        plt.imshow(exploration_map)
+        plt.show()
+
+
+        local_occupancy_map = isolateLocalMap(x, y, occupancy_map)
+        local_exploration_map = isolateLocalMap(x, y, exploration_map)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run channel processing for a robot.")

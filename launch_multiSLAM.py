@@ -8,6 +8,7 @@ import cv2
 import channelUtils.channel_processing as cproc
 from isaacsimUtils.ros_utils import run_ros_command, send_nav_goal
 import threading
+import omni.usd 
 
 """
 This is the main file for the multi-robot SLAM simulation for CATMiP.
@@ -43,14 +44,25 @@ def launch_isaac_sim():
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run multi SLAM with optional debug mode.")
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
-    parser.add_argument("--amount", type=str, default="3", help="Amount of robots to use")
+    parser.add_argument("--n_agents", type=str, default="3", help="number of robots to use")
+    parser.add_argument("--agent_types", nargs="+", type=str, default=["explorer", "explorer", "rescuer"], help="types of robots to use")
+
     args = parser.parse_args()
     if args.debug: print("In Debug mode.")
 
     # Robot namespaces
     robot_ids = []
-    for i in range(int(args.amount)):
-        robot_ids.append(f"robot{i+1}")
+    n_explorer = 0
+    n_rescuer = 0
+    for i in range(int(args.n_agents)):
+        if args.agent_types[i] == "rescuer":
+            robot_ids.append(f"rescuer{n_rescuer+1}")
+            n_rescuer += 1
+        elif args.agent_types[i] == "explorer":
+            robot_ids.append(f"explorer{n_explorer+1}")
+            n_explorer += 1
+
+    print("Robot IDs:", robot_ids)
 
     ###--- Generate Target ---###
 
@@ -64,21 +76,36 @@ if __name__ == "__main__":
 
         if ground_truth_occupancy_map[y, x] == 0 and x >= 10 and y >= 10:
             print(f"Chosen target: ({x}, {y})")
+            target_pos = (x, y)
             target_map = cproc.to_single_pose_map(x, y)
             cv2.imwrite(f"channels/global/target_map.png", target_map)
             break
-      
+    
+
+
+    #Get the current stage (assumes Isaac Sim is already running and a stage is loaded)
+    stage = omni.usd.get_context().get_stage()
+    print("stage is", stage)
+    # Replace with the USD path to your Lidar sensor
+    lidar_path = "/World/turtlebot3_burger_1/base_scan/Lidar"
+    lidar_prim = stage.GetPrimAtPath(lidar_path)
+
+    # Change the min and max range (values in meters)
+    lidar_prim.GetAttribute("minRange").Set(0.5)
+    lidar_prim.GetAttribute("maxRange").Set(10.0)
+
+
     
     ###--- Launch Processes ---###    
 
     try:
         # Source ROS2
-        subprocess.run("source /opt/ros/humble/setup.bash", shell=True, executable="/bin/bash")
+        # subprocess.run("source /opt/ros/humble/setup.bash", shell=True, executable="/bin/bash")
         subprocess.run("source ~/ros2_ws/install/setup.bash", shell=True, executable="/bin/bash")
 
-        print("Launching Isaac Sim with ROS 2 bridge...")
-        isaac_sim = launch_isaac_sim()
-        time.sleep(15)  # Wait for Isaac Sim to stabilize
+        # print("Launching Isaac Sim with ROS 2 bridge...")
+        # isaac_sim = launch_isaac_sim()
+        # time.sleep(15)  # Wait for Isaac Sim to stabilize
 
         print("Launching SLAM components ...")
         slam_processes = []
@@ -105,8 +132,13 @@ if __name__ == "__main__":
         print("Simulation is fully running! Ready to send navigation goals. CTRL C to close.")
         print()
 
+        # Get Macro-Observations for all robots
+        macro_observation = cproc.get_macro_observations(robot_ids, map_size=(width, height), target_pos=target_pos)
+        
+        
         # Send navigation goals
         while True:
+            
             nav_goals = []
             completion_events = []
             for robot_id in robot_ids:
@@ -140,13 +172,14 @@ if __name__ == "__main__":
         print(e)
     finally:
         print("Shutting down processes...")
-        processes = [isaac_sim, nav_process] + slam_processes + pose_subscribers
+        processes = [nav_process] + slam_processes + pose_subscribers
+        # processes = [isaac_sim, nav_process] + slam_processes + pose_subscribers
         for proc in processes:
             try:
                 os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
             except Exception as ex:
                 print(f"Could not kill process group for pid {proc.pid}: {ex}")
-        os.killpg(os.getpgid(isaac_sim.pid), signal.SIGTERM) # Make sure Isaac Sim is killed
+        # os.killpg(os.getpgid(isaac_sim.pid), signal.SIGTERM) # Make sure Isaac Sim is killed
 
         # Shutdown ROS2
         subprocess.run("ros2 daemon stop", shell=True, executable="/bin/bash")
