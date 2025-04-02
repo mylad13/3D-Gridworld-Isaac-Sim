@@ -8,7 +8,6 @@ import cv2
 import channelUtils.channel_processing as cproc
 from isaacsimUtils.ros_utils import run_ros_command, send_nav_goal
 import threading
-import omni.usd 
 
 """
 This is the main file for the multi-robot SLAM simulation for CATMiP.
@@ -81,21 +80,6 @@ if __name__ == "__main__":
             cv2.imwrite(f"channels/global/target_map.png", target_map)
             break
     
-
-
-    #Get the current stage (assumes Isaac Sim is already running and a stage is loaded)
-    stage = omni.usd.get_context().get_stage()
-    print("stage is", stage)
-    # Replace with the USD path to your Lidar sensor
-    lidar_path = "/World/turtlebot3_burger_1/base_scan/Lidar"
-    lidar_prim = stage.GetPrimAtPath(lidar_path)
-
-    # Change the min and max range (values in meters)
-    lidar_prim.GetAttribute("minRange").Set(0.5)
-    lidar_prim.GetAttribute("maxRange").Set(10.0)
-
-
-    
     ###--- Launch Processes ---###    
 
     try:
@@ -164,9 +148,12 @@ if __name__ == "__main__":
             print("All robots have reached their goals. Processing channels...")
             print()
 
-            # Run channel processing
-            channel_processing_command = "python3 channelUtils/channel_processing.py"
-            subprocess.run(channel_processing_command, shell=True, executable="/bin/bash")
+            # Get Macro-Observations for all robots
+            macro_observation = cproc.get_macro_observations(robot_ids, map_size=(width, height), target_pos=target_pos)
+        
+            # # Run channel processing
+            # channel_processing_command = "python3 channelUtils/channel_processing.py"
+            # subprocess.run(channel_processing_command, shell=True, executable="/bin/bash")
 
     except Exception as e:
         print(e)

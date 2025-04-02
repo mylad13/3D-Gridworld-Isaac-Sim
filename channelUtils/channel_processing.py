@@ -22,12 +22,18 @@ def resize_image(img: np.ndarray, size: int) -> np.ndarray:
     unknown_val = 205 # Grey
 
     # Isolate the explored area
-    # Find the black pixel closest to the top left corner
-    top_left = np.argwhere(img == 0).min(axis=0)
-    # Find the black pixel closest to the bottom right corner
-    bottom_right = np.argwhere(img == 0).max(axis=0)
+    black_pixels = np.argwhere(img == 0)
+    if black_pixels.size == 0:
+        # No black pixels found, use the whole image
+        cropped = img
+    else:
+        # Isolate the explored area
+        # Find the black pixel closest to the top left corner
+        top_left = black_pixels.min(axis=0)
+        # Find the black pixel closest to the bottom right corner
+        bottom_right = black_pixels.max(axis=0)
+        cropped = img[top_left[0]:bottom_right[0] + 1, top_left[1]:bottom_right[1] + 1]
 
-    cropped = img[top_left[0]:bottom_right[0] + 1, top_left[1]:bottom_right[1] + 1]
 
     # # If the map is smaller than the desired size, add padding (unexplored cells)
     # if cropped.shape[0] < size or cropped.shape[1] < size:
@@ -167,7 +173,28 @@ def getMap(namespace: str = "robot1", size: int = 30) -> np.ndarray:
     # Rotate the image +270 degrees to match orientation of numpy array
     img = np.rot90(img, k=3)
 
-    return img
+    # Downsample the image
+    new_width = size
+    new_height = size
+    downsampled_img = cv2.resize(img, (new_width, new_height), interpolation=cv2.INTER_AREA)
+    print("shape of image", img.shape)
+    print("shape of downsampled image", downsampled_img.shape)
+    # show the image and the downsampled image side by side
+    plt.subplot(1, 2, 1)
+    plt.title(f"Original Image of {namespace}")
+    plt.imshow(img)
+    plt.subplot(1, 2, 2)
+    plt.title(f"Downsampled Image of {namespace}")
+    plt.axis('off')
+    plt.axis('equal')
+    plt.xticks([])
+    plt.yticks([])
+    plt.tight_layout()
+    plt.subplots_adjust(wspace=0.1)
+    plt.imshow(downsampled_img)
+    plt.show()
+
+    return downsampled_img
 
 """
 Isolates a local map of 7x7 centered around the robot's position.
@@ -248,9 +275,9 @@ def get_macro_observations(robot_ids: list[str], map_size, target_pos) -> dict[s
         explorer_positions = [robot_positions[explorer] for explorer in explorers]
         explorer_map = to_multi_pose_map(explorer_positions, map_size[0])
         
-        print("exploration_map", exploration_map)
-        plt.imshow(exploration_map)
-        plt.show()
+        # print("exploration_map", exploration_map)
+        # plt.imshow(exploration_map)
+        # plt.show()
 
 
         local_occupancy_map = isolateLocalMap(x, y, occupancy_map)
@@ -261,9 +288,9 @@ if __name__ == "__main__":
     parser.add_argument("--size", type=int, default=30, help="The size of the map to process.")
     args = parser.parse_args()
 
-    namespaces = ["robot1", "robot2", "robot3"]
-    explorers = ["robot1", "robot2"]
-    rescuers = ["robot3"]
+    namespaces = ["explorer1", "explorer2", "rescuer1"]
+    explorers = ["explorer1", "explorer2"]
+    rescuers = ["rescuer1"]
     robot_positions = {}
 
     # Local maps

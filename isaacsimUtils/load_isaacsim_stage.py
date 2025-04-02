@@ -1,5 +1,6 @@
 import argparse
 from isaacsim import SimulationApp
+import os 
 
 # Parse command-line arguments
 parser = argparse.ArgumentParser(description="Load different USD scenes in Isaac Sim.")
@@ -22,6 +23,9 @@ CONFIG = {
 
 print("Starting Isaac Sim...")
 
+os.environ["FASTRTPS_DEFAULT_PROFILES_FILE"] = "/home/farjadnm/IsaacSim-ros_workspaces/humble_ws/fastdds.xml"
+os.environ["RMW_IMPLEMENTATION"] = "rmw_fastrtps_cpp"
+os.environ["LD_LIBRARY_PATH"] = "$LD_LIBRARY_PATH:/home/farjadnm/isaacsim/exts/isaacsim.ros2.bridge/humble/lib"
 # Start the Omniverse application
 simulation = SimulationApp(launch_config=CONFIG)
 
