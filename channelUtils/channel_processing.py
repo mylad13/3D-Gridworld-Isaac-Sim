@@ -142,6 +142,43 @@ def getPose(namespace: str = "robot1") -> tuple[int, int]:
     
     return x, y
 
+def occupancy_pool_downsample(image: np.ndarray, pool_size: int,
+                              occ_ratio_threshold: float = 0.1,
+                              free_ratio_threshold: float = 0.7) -> np.ndarray:
+    """
+    Downsamples an occupancy grid (with values 0, 205, 255) using a voting scheme.
+    
+    For each non-overlapping pool_size x pool_size block:
+      - If occupied fraction (value==0) >= occ_ratio_threshold, cell = 0 (occupied)
+      - Else if free fraction (value==255) >= free_ratio_threshold, cell = 255 (free)
+      - Otherwise, cell = 205 (unknown)
+    
+    Adjust the thresholds as needed.
+    """
+    h, w = image.shape
+    new_h = h // pool_size
+    new_w = w // pool_size
+    downsampled = np.empty((new_h, new_w), dtype=np.uint8)
+    
+    for i in range(new_h):
+        for j in range(new_w):
+            block = image[i * pool_size:(i + 1) * pool_size,
+                          j * pool_size:(j + 1) * pool_size]
+            total = block.size
+            occ_count = np.count_nonzero(block == 0)
+            free_count = np.count_nonzero(block == 255)
+            
+            occ_ratio = occ_count / total
+            free_ratio = free_count / total
+            
+            if occ_ratio >= occ_ratio_threshold:
+                downsampled[i, j] = 0
+            elif free_ratio >= free_ratio_threshold:
+                downsampled[i, j] = 255
+            else:
+                downsampled[i, j] = 205
+    return downsampled
+
 def getMap(namespace: str = "robot1", size: int = 30) -> np.ndarray:
     """
     Extracts the channels from the robot's map and saves them as images.
@@ -173,28 +210,48 @@ def getMap(namespace: str = "robot1", size: int = 30) -> np.ndarray:
     # Rotate the image +270 degrees to match orientation of numpy array
     img = np.rot90(img, k=3)
 
-    # Downsample the image
-    new_width = size
-    new_height = size
-    downsampled_img = cv2.resize(img, (new_width, new_height), interpolation=cv2.INTER_AREA)
-    print("shape of image", img.shape)
-    print("shape of downsampled image", downsampled_img.shape)
-    # show the image and the downsampled image side by side
-    plt.subplot(1, 2, 1)
-    plt.title(f"Original Image of {namespace}")
-    plt.imshow(img)
-    plt.subplot(1, 2, 2)
-    plt.title(f"Downsampled Image of {namespace}")
-    plt.axis('off')
-    plt.axis('equal')
-    plt.xticks([])
-    plt.yticks([])
-    plt.tight_layout()
-    plt.subplots_adjust(wspace=0.1)
-    plt.imshow(downsampled_img)
-    plt.show()
+    return img
 
-    return downsampled_img
+    # # Downsample using the custom occupancy pooling function
+    # downsampled_img = occupancy_pool_downsample(img, pool_size=20)
+    
+    # Optional: Print unique values to verify only 0, 205, 255 are present
+    # print("Unique values in downsampled map:", np.unique(downsampled_img))
+    
+    # return downsampled_img
+
+    # # Downsample the image
+    # new_width = size
+    # new_height = size
+    # downsampled_img = cv2.resize(img, (new_width, new_height), interpolation=cv2.INTER_NEAREST)
+
+    # def quantize_pixel(value):
+    #     allowed = [0, 205, 255]
+    #     return min(allowed, key=lambda x: abs(x - value))
+
+    # # Vectorize the function to apply it over the image array:
+    # vectorized_quantize = np.vectorize(quantize_pixel)
+    # downsampled_img = vectorized_quantize(downsampled_img)
+
+
+    # print("shape of image", img.shape)
+    # print("shape of downsampled image", downsampled_img.shape)
+    # # show the image and the downsampled image side by side
+    # plt.subplot(1, 2, 1)
+    # plt.title(f"Original Image of {namespace}")
+    # plt.imshow(img)
+    # plt.subplot(1, 2, 2)
+    # plt.title(f"Downsampled Image of {namespace}")
+    # plt.axis('off')
+    # plt.axis('equal')
+    # plt.xticks([])
+    # plt.yticks([])
+    # plt.tight_layout()
+    # plt.subplots_adjust(wspace=0.1)
+    # plt.imshow(downsampled_img)
+    # plt.show()
+
+    # return downsampled_img
 
 """
 Isolates a local map of 7x7 centered around the robot's position.
@@ -275,9 +332,31 @@ def get_macro_observations(robot_ids: list[str], map_size, target_pos) -> dict[s
         explorer_positions = [robot_positions[explorer] for explorer in explorers]
         explorer_map = to_multi_pose_map(explorer_positions, map_size[0])
         
-        # print("exploration_map", exploration_map)
-        # plt.imshow(exploration_map)
-        # plt.show()
+        print(f"{robot_id} has the following maps:")
+        plt.subplot(2, 2, 1)
+        plt.title(f"exploration map {robot_id}")
+        plt.imshow(exploration_map)
+        plt.subplot(2, 2, 2)
+        plt.title(f"occupancy map of {robot_id}")
+        plt.axis('off')
+        plt.axis('equal')
+        plt.xticks([])
+        plt.yticks([])
+        plt.tight_layout()
+        plt.subplots_adjust(wspace=0.1)
+        plt.imshow(occupancy_map)
+        plt.subplot(2, 2, 3)
+        plt.title(f"target map of {robot_id}")
+        plt.axis('off')
+        plt.axis('equal')
+        plt.xticks([])
+        plt.yticks([])
+        plt.tight_layout()
+        plt.imshow(target_map)
+        plt.subplot(2, 2, 4)
+        plt.title(f"ego pose map of {robot_id}")
+        plt.imshow(ego_pose_map)
+        plt.show()
 
 
         local_occupancy_map = isolateLocalMap(x, y, occupancy_map)

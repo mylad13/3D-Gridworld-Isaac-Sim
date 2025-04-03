@@ -50,6 +50,19 @@ omni.usd.get_context().open_stage(usd_path)
 simulation.update()
 simulation.update()
 
+# Get the current stage
+stage = omni.usd.get_context().get_stage()
+
+for i in range(3):
+    # Replace with the USD path to your Lidar sensor
+    lidar_path = f"/World/turtlebot3_burger_{i+1}/base_scan/Lidar"
+    lidar_prim = stage.GetPrimAtPath(lidar_path)
+
+    # Change the min and max range (values in meters)
+    lidar_prim.GetAttribute("minRange").Set(0.1)
+    lidar_prim.GetAttribute("maxRange").Set(7.0)
+
+
 print("Loading stage...")
 from isaacsim.core.utils.stage import is_stage_loading
 
