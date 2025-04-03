@@ -34,27 +34,6 @@ def resize_image(img: np.ndarray, size: int) -> np.ndarray:
         bottom_right = black_pixels.max(axis=0)
         cropped = img[top_left[0]:bottom_right[0] + 1, top_left[1]:bottom_right[1] + 1]
 
-
-    # # If the map is smaller than the desired size, add padding (unexplored cells)
-    # if cropped.shape[0] < size or cropped.shape[1] < size:
-    #     print(f"Warning: Map size ({cropped.shape}) is smaller than the desired size ({size}). Padding...")
-    #     padded = np.full((size, size), unknown_val, dtype=np.uint8)
-    #     if cropped.shape[0] < size:
-    #         top_pad = (size - cropped.shape[0]) // 2
-    #         bottom_pad = size - cropped.shape[0] - top_pad
-    #         cropped = np.pad(cropped, ((top_pad, bottom_pad), (0, 0)), mode='constant', constant_values=unknown_val)
-    #     if cropped.shape[1] < size:
-    #         left_pad = (size - cropped.shape[1]) // 2
-    #         right_pad = size - cropped.shape[1] - left_pad
-    #         cropped = np.pad(cropped, ((0, 0), (left_pad, right_pad)), mode='constant', constant_values=unknown_val)
-
-    # # If the map is larger, throw a warning and crop it
-    # if cropped.shape[0] > size or cropped.shape[1] > size:
-    #     #print(f"Warning: Map size ({cropped.shape}) is larger than the desired size ({size}). Cropping...")
-    #     cropped = cropped[:size, :size]
-
-    # return cropped
-
     h, w = cropped.shape
     if h > size or w > size:
         print(f"Warning: Cropped map size ({h}, {w}) is larger than desired size ({size}). Cropping...")
@@ -101,8 +80,9 @@ def to_single_pose_map(x: int, y: int, size: Optional[int] = 30) -> None:
     0 for every pixel except the given position, which is 255.
     """
     
-    x += 4 # Offset based on starting position in Isaac Sim
-    y += 4
+    # This offest is moved to the getPose function
+    # x += 4 # Offset based on starting position in Isaac Sim
+    # y += 4
 
     map = np.zeros((size, size), dtype=np.uint8) 
     map[y, x] = 255
@@ -116,13 +96,13 @@ def to_multi_pose_map(coordinates: list[tuple[int, int]], size) -> None:
     """
     map = np.zeros((size, size), dtype=np.uint8)
     for x, y in coordinates:
-        x += 4 # Offset based on starting position in Isaac Sim
-        y += 4
+        # x += 4 # Offset based on starting position in Isaac Sim
+        # y += 4
         map[y, x] = 255
     
     return map
 
-def getPose(namespace: str = "robot1") -> tuple[int, int]:
+def getPose(namespace: str = "robot1", initial_pose) -> tuple[int, int]:
     """
     Extracts the channels from the robot's map and saves them as images.
     """
@@ -139,6 +119,10 @@ def getPose(namespace: str = "robot1") -> tuple[int, int]:
     except FileNotFoundError:
         print(f"No position data found for {namespace}")
         x, y = 0, 0
+    
+    # Offset based on starting position in Isaac Sim
+    x = x + initial_pose[0]
+    y = y + initial_pose[1]
     
     return x, y
 
@@ -285,7 +269,7 @@ def isolateLocalMap(x: int, y: int, img: np.ndarray) -> np.ndarray:
 
     return local_map
 
-def get_macro_observations(robot_ids: list[str], map_size, target_pos) -> dict[str, dict[str, np.ndarray]]:
+def get_macro_observations(robot_ids: list[str], initial_poses, map_size, target_pos) -> dict[str, dict[str, np.ndarray]]:
     """
     Get macro-observations for all robots.
     robot_ids: List of robot namespaces
@@ -305,7 +289,7 @@ def get_macro_observations(robot_ids: list[str], map_size, target_pos) -> dict[s
             raise ValueError(f"Unknown robot type: {robot_id}")
         
         # Get the robot's pose
-        x, y = getPose(robot_id)
+        x, y = getPose(robot_id, initial_poses[robot_id])
         robot_positions[robot_id] = (x, y)
 
 
@@ -324,7 +308,7 @@ def get_macro_observations(robot_ids: list[str], map_size, target_pos) -> dict[s
         else:
             target_map = np.zeros((map_size[0], map_size[1]), dtype=np.uint8)
         
-        ego_pose_map = to_single_pose_map(x, y, map_size[0])
+        ego_pose_map = to_single_pose_map(robot_positions[robot_id][0], robot_positions[robot_id][1], map_size[0])
         
         rescuer_positions = [robot_positions[rescuer] for rescuer in rescuers]
         rescuer_map = to_multi_pose_map(rescuer_positions, map_size[0])

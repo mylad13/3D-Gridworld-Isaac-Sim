@@ -16,6 +16,7 @@ class PoseSubscriber(Node):
         self.subscription  # prevent unused variable warning
 
     def pose_callback(self, msg) -> None:
+        self.get_logger().info(f"Received pose for {self.namespace}: {msg.pose.pose.position.x}, {msg.pose.pose.position.y}")
         x = round(msg.pose.pose.position.x)
         y = round(msg.pose.pose.position.y)
 
