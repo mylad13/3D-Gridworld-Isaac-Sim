@@ -102,7 +102,7 @@ def to_multi_pose_map(coordinates: list[tuple[int, int]], size) -> None:
     
     return map
 
-def getPose(namespace: str = "robot1", initial_pose) -> tuple[int, int]:
+def getPose(namespace: str = "robot1", initial_pose=(2,2)) -> tuple[int, int]:
     """
     Extracts the channels from the robot's map and saves them as images.
     """
@@ -123,7 +123,7 @@ def getPose(namespace: str = "robot1", initial_pose) -> tuple[int, int]:
     # Offset based on starting position in Isaac Sim
     x = x + initial_pose[0]
     y = y + initial_pose[1]
-    
+
     return x, y
 
 def occupancy_pool_downsample(image: np.ndarray, pool_size: int,

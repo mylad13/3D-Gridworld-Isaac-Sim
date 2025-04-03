@@ -51,16 +51,17 @@ if __name__ == "__main__":
 
     # Robot namespaces
     robot_ids = []
-    initial_poses = [] # Initial poses (x,y) wrt the corner of the map
+    initial_poses = {} # Initial poses (x,y) wrt the corner of the map
     n_explorer = 0
     n_rescuer = 0
     for i in range(int(args.n_agents)):
-        initial_poses.append((2+i, 2))
         if args.agent_types[i] == "rescuer":
             robot_ids.append(f"rescuer{n_rescuer+1}")
+            initial_poses[f"rescuer{n_rescuer+1}"] = (2+i, 2)
             n_rescuer += 1
         elif args.agent_types[i] == "explorer":
             robot_ids.append(f"explorer{n_explorer+1}")
+            initial_poses[f"explorer{n_explorer+1}"] = (2+i, 2)
             n_explorer += 1
     print("Robot IDs:", robot_ids)
     print("Initial poses:", initial_poses)
@@ -150,7 +151,7 @@ if __name__ == "__main__":
             print()
 
             # Get Macro-Observations for all robots
-            macro_observation = cproc.get_macro_observations(robot_ids, map_size=(width, height), target_pos=target_pos)
+            macro_observation = cproc.get_macro_observations(robot_ids, initial_poses, map_size=(width, height), target_pos=target_pos)
         
             # # Run channel processing
             # channel_processing_command = "python3 channelUtils/channel_processing.py"
