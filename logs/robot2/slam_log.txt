@@ -1,8 +1,0 @@
-[INFO] [launch]: All log files can be found below /home/kyler/.ros/log/2025-03-25-19-00-59-348113-kyler-Vector-16-HX-A13VHG-63904
-[INFO] [launch]: Default logging verbosity is set to INFO
-[INFO] [multirobot_slam_toolbox_node-1]: process started with pid [63926]
-[multirobot_slam_toolbox_node-1] [INFO] [1742896859.454986706] [robot2.slam_toolbox]: Node using stack size 40000000
-[multirobot_slam_toolbox_node-1] [INFO] [1742896859.566539789] [robot2.slam_toolbox]: Using solver plugin solver_plugins::CeresSolver
-[multirobot_slam_toolbox_node-1] [INFO] [1742896859.566917642] [robot2.slam_toolbox]: CeresSolver: Using SCHUR_JACOBI preconditioner.
-[multirobot_slam_toolbox_node-1] Registering sensor: [Custom Described Lidar : base_scan]
-[multirobot_slam_toolbox_node-1] Registering sensor: [Custom Described Lidar : robot1]

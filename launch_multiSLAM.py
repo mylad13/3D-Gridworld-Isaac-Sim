@@ -119,7 +119,7 @@ if __name__ == "__main__":
         print()
 
         # Get Macro-Observations for all robots
-        macro_observation = cproc.get_macro_observations(robot_ids, initial_poses, map_size=(width, height), target_pos=target_pos)
+        # macro_observation = cproc.get_macro_observations(robot_ids, initial_poses, map_size=(width, height), target_pos=target_pos)
         
         
         # Send navigation goals
@@ -128,11 +128,17 @@ if __name__ == "__main__":
             nav_goals = []
             completion_events = []
             for robot_id in robot_ids:
+                robot_pose = cproc.getPose(robot_id, initial_poses[robot_id])
+                print(f"Robot {robot_id} pose: {robot_pose}")
                 print("Input navigation goal for", robot_id)
-                x = float(input("Enter goal X coordinate: "))
-                y = float(input("Enter goal Y coordinate: "))
+                x = float(input("Enter ego-relative goal X coordinate: "))
+                y = float(input("Enter ego-relative goal Y coordinate: "))
                 event = threading.Event()
-                nav_goals.append((robot_id, x, y, event))
+
+                # x and y wrt the corner of the map
+                x = robot_pose[0] + x
+                y = robot_pose[1] + y
+                nav_goals.append((robot_id, x-initial_poses[robot_id][0], y-initial_poses[robot_id][1], event))
                 
                 # Save image of the goal
                 goal_map = cproc.to_single_pose_map(int(x), int(y))
