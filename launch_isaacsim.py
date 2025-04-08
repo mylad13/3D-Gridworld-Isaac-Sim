@@ -18,7 +18,11 @@ ISAAC_SIM_PATH = os.path.join(HOME, "isaacsim")
 def launch_isaac_sim():
     """Launch Isaac Sim with ROS 2 bridge."""
 
-    log_file = "logs/isaacsim_log.txt"
+    log_dir = "logs"
+    if not os.path.exists(log_dir):
+        os.makedirs(log_dir)
+
+    log_file = os.path.join(log_dir, "isaacsim_log.txt")
     with open(log_file, "w") as f:
         # Call load_isaacsim_stage python file
         return subprocess.Popen(

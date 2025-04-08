@@ -56,7 +56,7 @@ def to_occupancy_map(img: np.ndarray, size: int = 30) -> np.ndarray:
     cropped = resize_image(img, size)
 
     # Save the cropped image
-    occupancy_binary = np.where(cropped == 0, 0, 255).astype(np.uint8) # Occupied cells are black (0) and safe (free/unknown) are white (255)
+    occupancy_binary = np.where(cropped == 0, 255, 0).astype(np.uint8) # Occupied cells are white (255) and safe (free/unknown) are black (0)
 
     return occupancy_binary
 
@@ -102,7 +102,7 @@ def to_multi_pose_map(coordinates: list[tuple[int, int]], size) -> None:
     
     return map
 
-def getPose(namespace: str = "robot1", initial_pose=(2,2)) -> tuple[int, int]:
+def getPose(namespace: str = "robot1", initial_pose=[0,0,0]) -> tuple[int, int]:
     """
     Extracts the channels from the robot's map and saves them as images.
     """
@@ -196,47 +196,6 @@ def getMap(namespace: str = "robot1", size: int = 30) -> np.ndarray:
 
     return img
 
-    # # Downsample using the custom occupancy pooling function
-    # downsampled_img = occupancy_pool_downsample(img, pool_size=20)
-    
-    # Optional: Print unique values to verify only 0, 205, 255 are present
-    # print("Unique values in downsampled map:", np.unique(downsampled_img))
-    
-    # return downsampled_img
-
-    # # Downsample the image
-    # new_width = size
-    # new_height = size
-    # downsampled_img = cv2.resize(img, (new_width, new_height), interpolation=cv2.INTER_NEAREST)
-
-    # def quantize_pixel(value):
-    #     allowed = [0, 205, 255]
-    #     return min(allowed, key=lambda x: abs(x - value))
-
-    # # Vectorize the function to apply it over the image array:
-    # vectorized_quantize = np.vectorize(quantize_pixel)
-    # downsampled_img = vectorized_quantize(downsampled_img)
-
-
-    # print("shape of image", img.shape)
-    # print("shape of downsampled image", downsampled_img.shape)
-    # # show the image and the downsampled image side by side
-    # plt.subplot(1, 2, 1)
-    # plt.title(f"Original Image of {namespace}")
-    # plt.imshow(img)
-    # plt.subplot(1, 2, 2)
-    # plt.title(f"Downsampled Image of {namespace}")
-    # plt.axis('off')
-    # plt.axis('equal')
-    # plt.xticks([])
-    # plt.yticks([])
-    # plt.tight_layout()
-    # plt.subplots_adjust(wspace=0.1)
-    # plt.imshow(downsampled_img)
-    # plt.show()
-
-    # return downsampled_img
-
 """
 Isolates a local map of 7x7 centered around the robot's position.
 """
@@ -244,10 +203,6 @@ def isolateLocalMap(x: int, y: int, img: np.ndarray) -> np.ndarray:
     """
     Isolates a local map of 7x7 centered around the robot's position.
     """
-
-    # Get the local map 
-    x += 4 # Offset based on starting position in Isaac Sim
-    y += 4
 
     # Find corners of the local map within bounds
     x1 = max(0, x - 3)
@@ -310,41 +265,66 @@ def get_macro_observations(robot_ids: list[str], initial_poses, map_size, target
         
         ego_pose_map = to_single_pose_map(robot_positions[robot_id][0], robot_positions[robot_id][1], map_size[0])
         
-        rescuer_positions = [robot_positions[rescuer] for rescuer in rescuers]
+        rescuer_map = np.zeros((map_size[0], map_size[1]), dtype=np.uint8)
+        rescuer_positions = [robot_positions[rescuer] for rescuer in rescuers if rescuer != robot_id]
         rescuer_map = to_multi_pose_map(rescuer_positions, map_size[0])
         
-        explorer_positions = [robot_positions[explorer] for explorer in explorers]
+        explorer_map = np.zeros((map_size[0], map_size[1]), dtype=np.uint8)
+        explorer_positions = [robot_positions[explorer] for explorer in explorers if explorer != robot_id]
         explorer_map = to_multi_pose_map(explorer_positions, map_size[0])
+
+        goal_map = cv2.imread(f"channels/{robot_id}/goal_map.png", cv2.IMREAD_GRAYSCALE)
         
-        print(f"{robot_id} has the following maps:")
+        # print(f"{robot_id} has the following maps:")
+        
+        # plt.subplot(2, 2, 1)
+        # plt.title(f"exploration map {robot_id}")
+        # plt.imshow(exploration_map)
+        # plt.subplot(2, 2, 2)
+        # plt.title(f"occupancy map of {robot_id}")
+        # plt.axis('off')
+        # plt.axis('equal')
+        # plt.xticks([])
+        # plt.yticks([])
+        # plt.tight_layout()
+        # plt.subplots_adjust(wspace=0.1)
+        # plt.imshow(occupancy_map)
+        # plt.subplot(2, 2, 3)
+        # plt.title(f"goal_map of {robot_id}")
+        # plt.axis('off')
+        # plt.axis('equal')
+        # plt.xticks([])
+        # plt.yticks([])
+        # plt.tight_layout()
+        # plt.imshow(goal_map)
+        # plt.subplot(2, 2, 4)
+        # plt.title(f"explorer map of {robot_id}")
+        # plt.imshow(explorer_map)
+        # plt.show()
+
+
+        local_occupancy_map = isolateLocalMap(robot_positions[robot_id][0], robot_positions[robot_id][1], occupancy_map)
+        local_exploration_map = isolateLocalMap(robot_positions[robot_id][0], robot_positions[robot_id][1], exploration_map)
+        local_target_map = isolateLocalMap(robot_positions[robot_id][0], robot_positions[robot_id][1], target_map)
+        local_rescuer_map = isolateLocalMap(robot_positions[robot_id][0], robot_positions[robot_id][1], rescuer_map)
+        local_explorer_map = isolateLocalMap(robot_positions[robot_id][0], robot_positions[robot_id][1], explorer_map)
+        local_goal_map = isolateLocalMap(robot_positions[robot_id][0], robot_positions[robot_id][1], goal_map)
+
+        print(f"{robot_id} has the following local maps:")
+
         plt.subplot(2, 2, 1)
-        plt.title(f"exploration map {robot_id}")
-        plt.imshow(exploration_map)
+        plt.title(f"local exploration map {robot_id}")
+        plt.imshow(local_exploration_map)
         plt.subplot(2, 2, 2)
-        plt.title(f"occupancy map of {robot_id}")
-        plt.axis('off')
-        plt.axis('equal')
-        plt.xticks([])
-        plt.yticks([])
-        plt.tight_layout()
-        plt.subplots_adjust(wspace=0.1)
-        plt.imshow(occupancy_map)
+        plt.title(f"local occupancy map of {robot_id}")
+        plt.imshow(local_occupancy_map)
         plt.subplot(2, 2, 3)
-        plt.title(f"target map of {robot_id}")
-        plt.axis('off')
-        plt.axis('equal')
-        plt.xticks([])
-        plt.yticks([])
-        plt.tight_layout()
-        plt.imshow(target_map)
+        plt.title(f"local_goal map of {robot_id}")
+        plt.imshow(local_goal_map)
         plt.subplot(2, 2, 4)
-        plt.title(f"ego pose map of {robot_id}")
-        plt.imshow(ego_pose_map)
+        plt.title(f"local explorer map of {robot_id}")
+        plt.imshow(local_explorer_map)
         plt.show()
-
-
-        local_occupancy_map = isolateLocalMap(x, y, occupancy_map)
-        local_exploration_map = isolateLocalMap(x, y, exploration_map)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run channel processing for a robot.")

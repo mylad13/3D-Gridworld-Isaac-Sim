@@ -54,15 +54,21 @@ if __name__ == "__main__":
     initial_poses = {} # Initial poses (x,y) wrt the corner of the map
     n_explorer = 0
     n_rescuer = 0
+    static_transform_processes = []
     for i in range(int(args.n_agents)):
         if args.agent_types[i] == "rescuer":
             robot_ids.append(f"rescuer{n_rescuer+1}")
-            initial_poses[f"rescuer{n_rescuer+1}"] = (2+i, 2)
+            initial_poses[f"rescuer{n_rescuer+1}"] = [3+i, 5, 0]
             n_rescuer += 1
         elif args.agent_types[i] == "explorer":
             robot_ids.append(f"explorer{n_explorer+1}")
-            initial_poses[f"explorer{n_explorer+1}"] = (2+i, 2)
+            initial_poses[f"explorer{n_explorer+1}"] = [3+i, 5, 0]
             n_explorer += 1
+
+        odom_static_transform_command = f"ros2 run tf2_ros static_transform_publisher --x 0 --y {-2*i} --z 0 --yaw 0 --pitch 0 --roll 0 --frame-id /odom --child-frame-id /{robot_ids[i]}/odom"
+        odom_static_transform_process = run_ros_command(odom_static_transform_command, f"logs/{robot_ids[i]}", "static_transform_log.txt")
+        static_transform_processes.append(odom_static_transform_process)
+
     print("Robot IDs:", robot_ids)
     print("Initial poses:", initial_poses)
     ###--- Generate Target ---###
@@ -72,8 +78,8 @@ if __name__ == "__main__":
     height, width = ground_truth_occupancy_map.shape
 
     while True:
-        x = random.randint(0,width-1) - 4 # Undo the expected offset
-        y = random.randint(0,height-1) - 4
+        x = random.randint(0,width-1)
+        y = random.randint(0,height-1)
 
         if ground_truth_occupancy_map[y, x] == 0 and x >= 10 and y >= 10:
             print(f"Chosen target: ({x}, {y})")
@@ -96,6 +102,9 @@ if __name__ == "__main__":
         print("Launching SLAM components ...")
         slam_processes = []
         for id in robot_ids:
+            # pose = initial_poses[id]
+            # pose_str = f"[{','.join(str(v) for v in pose)}]"
+            # slam_command = f"ros2 launch slam_toolbox online_async_multirobot_launch.py namespace:={id} map_start_pose:='{pose_str}' use_sim_time:=True"
             slam_command = f"ros2 launch slam_toolbox online_async_multirobot_launch.py namespace:={id} use_sim_time:=True"
             slam_process = run_ros_command(slam_command, f"logs/{id}", "slam_log.txt")
             slam_processes.append(slam_process)
@@ -118,13 +127,26 @@ if __name__ == "__main__":
         print("Simulation is fully running! Ready to send navigation goals. CTRL C to close.")
         print()
 
+
+
         # Get Macro-Observations for all robots
-        # macro_observation = cproc.get_macro_observations(robot_ids, initial_poses, map_size=(width, height), target_pos=target_pos)
+
+        # initial goal is just the robot's current position
+        for robot_id in robot_ids:
+            robot_pose = cproc.getPose(robot_id, initial_poses[robot_id])
+            # Save image of the goal
+            print(f"Robot {robot_id} pose: {robot_pose}")
+            goal_map = cproc.to_single_pose_map(robot_pose[0], robot_pose[1], height)
+            dir_path = f"channels/{robot_id}"
+            # Ensure directory exists
+            if not os.path.exists(dir_path):
+                os.makedirs(dir_path)
+            cv2.imwrite(f"{dir_path}/goal_map.png", goal_map)
+        macro_observation = cproc.get_macro_observations(robot_ids, initial_poses, map_size=(width, height), target_pos=target_pos)
         
         
         # Send navigation goals
         while True:
-            
             nav_goals = []
             completion_events = []
             for robot_id in robot_ids:
@@ -148,7 +170,7 @@ if __name__ == "__main__":
 
             for goal in nav_goals:
                 send_nav_goal(goal[0], goal[1], goal[2], event=goal[3])
-                print(f"Sent navigation goal to {goal[0]} at ({goal[1]}, {goal[2]})")
+                print(f"Sent navigation goal to {goal[0]} at ({goal[1]+initial_poses[goal[0]][0]}, {goal[2]+initial_poses[goal[0]][1]})")
             
             # Wait for the goal to complete
             for event in completion_events:
@@ -159,15 +181,12 @@ if __name__ == "__main__":
             # Get Macro-Observations for all robots
             macro_observation = cproc.get_macro_observations(robot_ids, initial_poses, map_size=(width, height), target_pos=target_pos)
         
-            # # Run channel processing
-            # channel_processing_command = "python3 channelUtils/channel_processing.py"
-            # subprocess.run(channel_processing_command, shell=True, executable="/bin/bash")
 
     except Exception as e:
         print(e)
     finally:
         print("Shutting down processes...")
-        processes = [nav_process] + slam_processes + pose_subscribers
+        processes = [nav_process] + static_transform_processes + slam_processes + pose_subscribers
         # processes = [isaac_sim, nav_process] + slam_processes + pose_subscribers
         for proc in processes:
             try:
