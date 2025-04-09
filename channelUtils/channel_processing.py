@@ -344,6 +344,7 @@ def get_macro_observations(all_robots: list[str], active_robots: list[str], init
         macro_obs['global_agent_map'][0, i, 4] = rescuers_map
         macro_obs['global_agent_map'][0, i, 5] = explorers_map
         macro_obs['global_agent_map'][0, i, 6] = goal_map
+        
         # print(f"{robot_id} has the following maps:")
         
         # plt.subplot(2, 2, 1)
@@ -368,7 +369,7 @@ def get_macro_observations(all_robots: list[str], active_robots: list[str], init
         # plt.imshow(goal_map)
         # plt.subplot(2, 2, 4)
         # plt.title(f"explorer map of {robot_id}")
-        # plt.imshow(explorer_map)
+        # plt.imshow(explorers_map)
         # plt.show()
 
         # Obtain local maps from their global counterparts:

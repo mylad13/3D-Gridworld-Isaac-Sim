@@ -6,7 +6,8 @@ import argparse
 import random
 import cv2
 import channelUtils.channel_processing as cproc
-from isaacsimUtils.ros_utils import run_ros_command, send_nav_goal, get_nav_goal
+from isaacsimUtils.ros_utils import run_ros_command, send_nav_goal
+from catmipUtils.utils import get_nav_goal, plot_macro_obs
 import threading
 
 """
@@ -176,6 +177,7 @@ if __name__ == "__main__":
                                     active_robots.append(r)
                             ## Get Macro-Observations for all active robots
                             macro_observation = cproc.get_macro_observations(robot_ids, active_robots, initial_poses, map_size=(width, height), target_pos=target_pos)
+                            plot_macro_obs(macro_observation, 0)
                             ## Currently just getting a random goal, #TODO: Get navigation goal from CATMiP, active agents do it together
                             print(f"Active robots are {active_robots}.")
                             new_nav_goals = get_nav_goal(n_robots = len(active_robots))

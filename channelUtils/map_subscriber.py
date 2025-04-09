@@ -10,10 +10,10 @@ import rclpy
 from rclpy.node import Node
 from nav_msgs.msg import OccupancyGrid
 
-class PersistentMapSaver(Node):
+class MapSaver(Node):
     def __init__(self, namespace: str, map_dir: str, map_filename: str = "map",
                  free_thresh: float = 0.25, occ_thresh: float = 0.65):
-        super().__init__('persistent_map_saver_{namespace}')
+        super().__init__(f'persistent_map_saver_{namespace}')
         self.namespace = namespace
         self.map_dir = map_dir
         self.map_filename = map_filename
@@ -29,11 +29,9 @@ class PersistentMapSaver(Node):
             self.map_callback,
             10
         )
-        self.get_logger().info(f"PersistentMapSaver started, subscribed to {topic}")
+        self.get_logger().info(f"MapSaver started, subscribed to {topic}")
 
     def map_callback(self, msg: OccupancyGrid):
-        if self.map_received:
-            return  # Already saved a map; ignore subsequent messages
 
         self.get_logger().info("Map received; saving map files.")
         width = msg.info.width
@@ -58,6 +56,7 @@ class PersistentMapSaver(Node):
         # Create a YAML file with the required metadata
         yaml_data = {
             'image': self.map_filename + '.pgm',
+            'mode': 'trinary',
             'resolution': msg.info.resolution,
             'origin': [msg.info.origin.position.x,
                        msg.info.origin.position.y,
@@ -71,8 +70,6 @@ class PersistentMapSaver(Node):
             yaml.dump(yaml_data, f)
         self.get_logger().info(f"Map YAML saved to {yaml_path}")
 
-        # Indicate that the map has been saved.
-        self.map_received = True
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Run a map subscriber node. Saves the robot's map into pgm and yaml files.")
@@ -87,13 +84,13 @@ if __name__ == '__main__':
     if not os.path.exists(map_dir):
         os.makedirs(map_dir)
 
-    node = PersistentMapSaver(namespace=namespace, map_dir=map_dir)
+    node = MapSaver(namespace=namespace, map_dir=map_dir)
     
     
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:
-        node.get_logger().info("PersistentMapSaver interrupted by user, shutting down.")
+        node.get_logger().info("MapSaver interrupted by user, shutting down.")
     finally:
         node.destroy_node()
         rclpy.shutdown()
