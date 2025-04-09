@@ -2,6 +2,7 @@ import os
 import subprocess
 import threading
 import signal
+import random
 
 def run_ros_command(command, directory, log_file):
     """Run a ROS 2 command in a separate process"""
@@ -57,9 +58,9 @@ def send_nav_goal(robot_id, x, y, theta=0.0, event=None):
             preexec_fn=os.setsid,  # Creates a new process group
         )
     try:
-        process.wait(timeout=45)
+        process.wait(timeout=30)
     except subprocess.TimeoutExpired:
-        print(f"Navigation goal for {robot_id} aborted after 45 seconds timeout.")
+        print(f"Navigation goal for {robot_id} aborted after 30 seconds timeout.")
         os.killpg(os.getpgid(process.pid), signal.SIGTERM)
     
     # Check the status of the goal
@@ -75,3 +76,12 @@ def send_nav_goal(robot_id, x, y, theta=0.0, event=None):
 
   # Run the goal in a new thread
   threading.Thread(target=run_goal).start()
+
+def get_nav_goal(n_robots = 1):
+  """Generate a n_robots number of random ego-relative navigation goal (x, y) with values between -3 and 3."""
+  nav_goals = []
+  for i in range(n_robots):
+    x = random.randint(-3, 3)
+    y = random.randint(-3, 3)
+    nav_goals.append((x, y))
+  return nav_goals

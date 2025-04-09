@@ -6,7 +6,7 @@ import argparse
 import random
 import cv2
 import channelUtils.channel_processing as cproc
-from isaacsimUtils.ros_utils import run_ros_command, send_nav_goal
+from isaacsimUtils.ros_utils import run_ros_command, send_nav_goal, get_nav_goal
 import threading
 
 """
@@ -92,12 +92,10 @@ if __name__ == "__main__":
 
     try:
         # Source ROS2
-        # subprocess.run("source /opt/ros/humble/setup.bash", shell=True, executable="/bin/bash")
+        subprocess.run("source /opt/ros/humble/setup.bash", shell=True, executable="/bin/bash")
         subprocess.run("source ~/ros2_ws/install/setup.bash", shell=True, executable="/bin/bash")
 
-        # print("Launching Isaac Sim with ROS 2 bridge...")
-        # isaac_sim = launch_isaac_sim()
-        # time.sleep(15)  # Wait for Isaac Sim to stabilize
+        # Assuming Isaac Sim is already running the correct scene
 
         print("Launching SLAM components ...")
         slam_processes = []
@@ -111,10 +109,13 @@ if __name__ == "__main__":
         time.sleep(5) # Wait for SLAM to stabilize
 
         print("Launching Nav components ...")
+        # Get the directory of the folder holding the current script
+        package_dir = os.path.dirname(os.path.abspath(__file__))
+        map_dir = os.path.join(package_dir, "maps")
         if args.debug: 
-            nav_command = "ros2 launch turtle_navigation multiple_robot_turtle_navigation.launch.py"
+            nav_command = f"ros2 launch turtle_navigation multiple_robot_turtle_navigation.launch.py map_dir:={map_dir}"
         else:
-            nav_command = "ros2 launch turtle_navigation multiple_robot_turtle_navigation.launch.py use_rviz:=false"
+            nav_command = f"ros2 launch turtle_navigation multiple_robot_turtle_navigation.launch.py map_dir:={map_dir} use_rviz:=false"
         nav_process = run_ros_command(nav_command, "logs", "nav_log.txt")
 
         print("Launching Pose Subscribers ...")
@@ -124,11 +125,12 @@ if __name__ == "__main__":
             pose_subscriber_process = run_ros_command(pose_subscriber_command, f"logs/{id}", "pose_subscriber.txt")
             pose_subscribers.append(pose_subscriber_process)
 
+        time.sleep(5) # Wait for Nav and Pose Subscribers to stabilize
+
         print("Simulation is fully running! Ready to send navigation goals. CTRL C to close.")
         print()
 
-
-
+        ### Assuming Full Communication between all robots
         # Get Macro-Observations for all robots
 
         # initial goal is just the robot's current position
@@ -142,46 +144,115 @@ if __name__ == "__main__":
             if not os.path.exists(dir_path):
                 os.makedirs(dir_path)
             cv2.imwrite(f"{dir_path}/goal_map.png", goal_map)
-        macro_observation = cproc.get_macro_observations(robot_ids, initial_poses, map_size=(width, height), target_pos=target_pos)
+        macro_observations = cproc.get_macro_observations(robot_ids, robot_ids, initial_poses, map_size=(width, height), target_pos=target_pos)
         
         
-        # Send navigation goals
+        robot_states = {robot_id: "active" for robot_id in robot_ids}
+        shared_nav_goals = {robot_id: None for robot_id in robot_ids} 
+        state_lock = threading.Lock()
+        
+        
+        def robot_loop(robot_id):
+            while True:
+                print(f"{robot_id} is in {robot_states[robot_id]} state.")
+
+                active_robots = []
+                with state_lock:
+                    if robot_states[robot_id] == "active":
+                        if shared_nav_goals[robot_id] is not None: # This means another robot has computed a goal for this robot
+                            x_rel, y_rel = shared_nav_goals[robot_id]
+                            print(f"{robot_id} has a shared goal: {shared_nav_goals[robot_id]}")
+                            shared_nav_goals[robot_id] = None
+                        else: # This robot is the one computing the goal
+                            active_robots.append(robot_id) # put robot_id first in the list
+                            for r in robot_ids:
+                                if r != robot_id and robot_states[r] == "active":
+                                    active_robots.append(r)
+                            ## Get Macro-Observations for all active robots
+                            # macro_observation = cproc.get_macro_observations(robot_ids, active_robots, initial_poses, map_size=(width, height), target_pos=target_pos)
+                            ## Currently just getting a random goal, #TODO: Get navigation goal from CATMiP, active agents do it together
+                            print(f"Active robots are {active_robots}.")
+                            new_nav_goals = get_nav_goal(n_robots = len(active_robots))
+                            if len(active_robots) > 1:
+                                for i, id in enumerate(active_robots):
+                                    shared_nav_goals[id] = new_nav_goals[i]
+                                    print(f"New navigation goal for {id}: {shared_nav_goals[id]}")
+                                x_rel, y_rel = new_nav_goals[0]
+                                shared_nav_goals[robot_id] = None
+                            else: # Only one robot is active
+                                x_rel, y_rel = new_nav_goals[0]
+                                  
+                if robot_states[robot_id] == "active":
+                    robot_pose = cproc.getPose(robot_id, initial_poses[robot_id])
+                    x_goal = robot_pose[0] + x_rel
+                    y_goal = robot_pose[1] + y_rel
+                    
+                    goal_map = cproc.to_single_pose_map(int(x_goal), int(y_goal))
+                    cv2.imwrite(f"channels/{robot_id}/goal_map.png", goal_map)
+                    
+                    event = threading.Event()
+                    
+                    send_nav_goal(
+                        robot_id,
+                        x_goal - initial_poses[robot_id][0],
+                        y_goal - initial_poses[robot_id][1],
+                        event=event,
+                    )
+                    with state_lock:
+                        robot_states[robot_id] = "inactive"
+
+                    print(f"{robot_id} sent to ({x_goal}, {y_goal}) and is now inactive.")
+
+                    event.wait()
+                
+                # Standby mode
+                with state_lock:
+                    robot_states[robot_id] = "on-standby"
+                    print(f"{robot_id} finished navigation and is on standby.")
+                
+                def try_group_activation():
+                    with state_lock:
+                        others_on_standby = any(
+                            r != robot_id and state == "on-standby"
+                            for r, state in robot_states.items()
+                        )
+                        if others_on_standby:
+                            for r in robot_ids:
+                                if robot_states[r] == "on-standby":
+                                    robot_states[r] = "active"
+                                    print(f"{r} activating with others.")
+                            return True
+                        return False
+                
+                if robot_states[robot_id] == "on-standby":
+                    # Wait 5s, try group activation
+                    time.sleep(5)
+                    if try_group_activation(): # If group activation is successful, continue
+                        continue
+                
+                if robot_states[robot_id] == "on-standby":
+                    # Wait another 5s if still on standby, try again
+                    print(f"{robot_id} waiting another 5s for partners...")
+                    time.sleep(5)
+
+                if robot_states[robot_id] == "on-standby":
+                    if not try_group_activation():
+                        with state_lock:
+                            # If no partners activated, activate alone
+                            robot_states[robot_id] = "active"
+                            print(f"{robot_id} activating alone.")
+
+        # Start a thread for each robot
+        robot_threads = []
+        for robot_id in robot_ids:
+            t = threading.Thread(target=robot_loop, args=(robot_id,))
+            t.start()
+            robot_threads.append(t)
+ 
+
         while True:
-            nav_goals = []
-            completion_events = []
-            for robot_id in robot_ids:
-                robot_pose = cproc.getPose(robot_id, initial_poses[robot_id])
-                print(f"Robot {robot_id} pose: {robot_pose}")
-                print("Input navigation goal for", robot_id)
-                x = float(input("Enter ego-relative goal X coordinate: "))
-                y = float(input("Enter ego-relative goal Y coordinate: "))
-                event = threading.Event()
-
-                # x and y wrt the corner of the map
-                x = robot_pose[0] + x
-                y = robot_pose[1] + y
-                nav_goals.append((robot_id, x-initial_poses[robot_id][0], y-initial_poses[robot_id][1], event))
-                
-                # Save image of the goal
-                goal_map = cproc.to_single_pose_map(int(x), int(y))
-                cv2.imwrite(f"channels/{robot_id}/goal_map.png", goal_map)
-                
-                completion_events.append(event)
-
-            for goal in nav_goals:
-                send_nav_goal(goal[0], goal[1], goal[2], event=goal[3])
-                print(f"Sent navigation goal to {goal[0]} at ({goal[1]+initial_poses[goal[0]][0]}, {goal[2]+initial_poses[goal[0]][1]})")
-            
-            # Wait for the goal to complete
-            for event in completion_events:
-                event.wait()
-            print("All robots have reached their goals. Processing channels...")
-            print()
-
-            # Get Macro-Observations for all robots
-            macro_observation = cproc.get_macro_observations(robot_ids, initial_poses, map_size=(width, height), target_pos=target_pos)
-        
-
+            time.sleep(1)
+    
     except Exception as e:
         print(e)
     finally:

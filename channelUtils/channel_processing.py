@@ -104,7 +104,7 @@ def to_multi_pose_map(coordinates: list[tuple[int, int]], size) -> None:
 
 def getPose(namespace: str = "robot1", initial_pose=[0,0,0]) -> tuple[int, int]:
     """
-    Extracts the channels from the robot's map and saves them as images.
+    Reads the last robot position from a file and returns the x, y coordinates wrt the origin of the map.
     """
     
     try:
@@ -224,17 +224,21 @@ def isolateLocalMap(x: int, y: int, img: np.ndarray) -> np.ndarray:
 
     return local_map
 
-def get_macro_observations(robot_ids: list[str], initial_poses, map_size, target_pos) -> dict[str, dict[str, np.ndarray]]:
+def get_macro_observations(all_robots: list[str], active_robots: list[str], initial_poses, map_size, target_pos) -> dict[str, dict[str, np.ndarray]]:
     """
     Get macro-observations for all robots.
     robot_ids: List of robot namespaces
     map_size: (width, height) of the map
     """
-    macro_observations = {}
+    macro_obs = {}
+    macro_obs['agent_class_identifier'] = np.zeros((1, len(all_robots), 2), dtype=int) # [1, 0] for rescuer, [0, 1] for explorer
+    macro_obs['global_agent_map'] = np.zeros((1, len(all_robots), 7, *map_size), dtype=np.float32) # 7 channels, full map size
+    macro_obs['local_agent_map'] = np.zeros((1, len(all_robots), 6, 7, 7), dtype=np.float32) # 6 channels, local map size
+
     robot_positions = {}
     rescuers = []
     explorers = []
-    for robot_id in robot_ids:
+    for robot_id in all_robots:
         # Identify the robot type
         if "rescuer" in robot_id:
             rescuers.append(robot_id)
@@ -247,13 +251,28 @@ def get_macro_observations(robot_ids: list[str], initial_poses, map_size, target
         x, y = getPose(robot_id, initial_poses[robot_id])
         robot_positions[robot_id] = (x, y)
 
+    # Copy the list of active robots to a new list called sorted_robots, and add the rest of the robots from all_robots list to sorted_robots
+    sorted_robots = active_robots.copy()
+    for robot_id in all_robots:
+        if robot_id not in sorted_robots:
+            sorted_robots.append(robot_id)
 
 
-    for robot_id in robot_ids:
+
+
+    for i, robot_id in enumerate(sorted_robots):
+        if robot_id in rescuers:
+            macro_obs["agent_class_identifier"][0, i, 0] = 1
+        elif robot_id in explorers:
+            macro_obs["agent_class_identifier"][0, i, 1] = 1
+        else:
+            raise ValueError(f"Unknown robot type: {robot_id}")
+        
         # Load the map image
         img = getMap(robot_id, map_size[0])
 
-        # Convert the map image to the different global channels: 0-explored, 1-occupancy, 2-target, 3-ego_pose, 4-rescuer_robots_pose, 5-explorer_robots_pose
+        # Convert the map image to the different global channels:
+        # 0. Exploration map, 1. Occupancy map, 2. Target map, 3. Ego-pose map 4. Rescuers map, 5. Explorers map, 6. Goal map
         exploration_map = to_exploration_map(img, map_size[0])
         
         occupancy_map = to_occupancy_map(img, map_size[0])
@@ -265,16 +284,23 @@ def get_macro_observations(robot_ids: list[str], initial_poses, map_size, target
         
         ego_pose_map = to_single_pose_map(robot_positions[robot_id][0], robot_positions[robot_id][1], map_size[0])
         
-        rescuer_map = np.zeros((map_size[0], map_size[1]), dtype=np.uint8)
+        rescuers_map = np.zeros((map_size[0], map_size[1]), dtype=np.uint8)
         rescuer_positions = [robot_positions[rescuer] for rescuer in rescuers if rescuer != robot_id]
-        rescuer_map = to_multi_pose_map(rescuer_positions, map_size[0])
+        rescuers_map = to_multi_pose_map(rescuer_positions, map_size[0])
         
-        explorer_map = np.zeros((map_size[0], map_size[1]), dtype=np.uint8)
+        explorers_map = np.zeros((map_size[0], map_size[1]), dtype=np.uint8)
         explorer_positions = [robot_positions[explorer] for explorer in explorers if explorer != robot_id]
-        explorer_map = to_multi_pose_map(explorer_positions, map_size[0])
+        explorers_map = to_multi_pose_map(explorer_positions, map_size[0])
 
         goal_map = cv2.imread(f"channels/{robot_id}/goal_map.png", cv2.IMREAD_GRAYSCALE)
         
+        macro_obs['global_agent_map'][0, i, 0] = exploration_map
+        macro_obs['global_agent_map'][0, i, 1] = occupancy_map
+        macro_obs['global_agent_map'][0, i, 2] = target_map
+        macro_obs['global_agent_map'][0, i, 3] = ego_pose_map
+        macro_obs['global_agent_map'][0, i, 4] = rescuers_map
+        macro_obs['global_agent_map'][0, i, 5] = explorers_map
+        macro_obs['global_agent_map'][0, i, 6] = goal_map
         # print(f"{robot_id} has the following maps:")
         
         # plt.subplot(2, 2, 1)
@@ -302,13 +328,22 @@ def get_macro_observations(robot_ids: list[str], initial_poses, map_size, target
         # plt.imshow(explorer_map)
         # plt.show()
 
+        # Obtain local maps from their global counterparts:
+        # 0. Exploration map, 1. Occupancy map, 2. Target map, 3. Rescuers map, 4. Explorers map, 5. Goal map
 
         local_occupancy_map = isolateLocalMap(robot_positions[robot_id][0], robot_positions[robot_id][1], occupancy_map)
         local_exploration_map = isolateLocalMap(robot_positions[robot_id][0], robot_positions[robot_id][1], exploration_map)
         local_target_map = isolateLocalMap(robot_positions[robot_id][0], robot_positions[robot_id][1], target_map)
-        local_rescuer_map = isolateLocalMap(robot_positions[robot_id][0], robot_positions[robot_id][1], rescuer_map)
-        local_explorer_map = isolateLocalMap(robot_positions[robot_id][0], robot_positions[robot_id][1], explorer_map)
+        local_rescuers_map = isolateLocalMap(robot_positions[robot_id][0], robot_positions[robot_id][1], rescuers_map)
+        local_explorers_map = isolateLocalMap(robot_positions[robot_id][0], robot_positions[robot_id][1], explorers_map)
         local_goal_map = isolateLocalMap(robot_positions[robot_id][0], robot_positions[robot_id][1], goal_map)
+
+        macro_obs['local_agent_map'][0, i, 0] = local_exploration_map
+        macro_obs['local_agent_map'][0, i, 1] = local_occupancy_map
+        macro_obs['local_agent_map'][0, i, 2] = local_target_map
+        macro_obs['local_agent_map'][0, i, 3] = local_rescuers_map
+        macro_obs['local_agent_map'][0, i, 4] = local_explorers_map
+        macro_obs['local_agent_map'][0, i, 5] = local_goal_map
 
         print(f"{robot_id} has the following local maps:")
 
@@ -322,9 +357,10 @@ def get_macro_observations(robot_ids: list[str], initial_poses, map_size, target
         plt.title(f"local_goal map of {robot_id}")
         plt.imshow(local_goal_map)
         plt.subplot(2, 2, 4)
-        plt.title(f"local explorer map of {robot_id}")
-        plt.imshow(local_explorer_map)
+        plt.title(f"local rescuer map of {robot_id}")
+        plt.imshow(local_rescuers_map)
         plt.show()
+    return macro_obs
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run channel processing for a robot.")
