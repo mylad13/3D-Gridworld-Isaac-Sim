@@ -125,6 +125,12 @@ if __name__ == "__main__":
             pose_subscriber_process = run_ros_command(pose_subscriber_command, f"logs/{id}", "pose_subscriber.txt")
             pose_subscribers.append(pose_subscriber_process)
 
+        map_subscribers = []
+        for id in robot_ids:
+            map_subscriber_command = f"python3 channelUtils/map_subscriber.py --namespace {id}"
+            map_subscriber_process = run_ros_command(map_subscriber_command, f"logs/{id}", "map_subscriber.txt")
+            map_subscribers.append(map_subscriber_process)
+
         time.sleep(5) # Wait for Nav and Pose Subscribers to stabilize
 
         print("Simulation is fully running! Ready to send navigation goals. CTRL C to close.")
@@ -169,7 +175,7 @@ if __name__ == "__main__":
                                 if r != robot_id and robot_states[r] == "active":
                                     active_robots.append(r)
                             ## Get Macro-Observations for all active robots
-                            # macro_observation = cproc.get_macro_observations(robot_ids, active_robots, initial_poses, map_size=(width, height), target_pos=target_pos)
+                            macro_observation = cproc.get_macro_observations(robot_ids, active_robots, initial_poses, map_size=(width, height), target_pos=target_pos)
                             ## Currently just getting a random goal, #TODO: Get navigation goal from CATMiP, active agents do it together
                             print(f"Active robots are {active_robots}.")
                             new_nav_goals = get_nav_goal(n_robots = len(active_robots))
@@ -257,7 +263,7 @@ if __name__ == "__main__":
         print(e)
     finally:
         print("Shutting down processes...")
-        processes = [nav_process] + static_transform_processes + slam_processes + pose_subscribers
+        processes = [nav_process] + static_transform_processes + slam_processes + pose_subscribers + map_subscribers
         # processes = [isaac_sim, nav_process] + slam_processes + pose_subscribers
         for proc in processes:
             try:

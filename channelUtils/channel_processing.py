@@ -8,6 +8,7 @@ import yaml
 import subprocess
 from typing import Optional
 import matplotlib.pyplot as plt
+import time
 
 def run_ros_command(command, log_file):
     """Run a ROS 2 command in a separate process"""
@@ -163,25 +164,68 @@ def occupancy_pool_downsample(image: np.ndarray, pool_size: int,
                 downsampled[i, j] = 205
     return downsampled
 
+def wait_for_topic(topic, timeout=15):
+    """
+    Wait until the specified ROS2 topic appears in the topic list.
+    Returns True if the topic is found within the timeout period, else False.
+    """
+    start_time = time.time()
+    while time.time() - start_time < timeout:
+        try:
+            topics = subprocess.check_output("ros2 topic list", shell=True).decode("utf-8")
+        except Exception as e:
+            print("Error listing topics:", e)
+            time.sleep(1)
+            continue
+
+        if topic in topics:
+            print(f"Found topic {topic}")
+            print(f"It took {time.time() - start_time:.2f} seconds to find topic {topic}")
+            return True
+        time.sleep(1)
+    return False
+
 def getMap(namespace: str = "robot1", size: int = 30) -> np.ndarray:
     """
     Extracts the channels from the robot's map and saves them as images.
     """
-    # Check if the logs directory exists
-    if not os.path.exists("maps"):
-        os.makedirs("maps")
-    if not os.path.exists("logs"):
-        os.makedirs("logs")
-    if not os.path.exists(f"maps/{namespace}"):
-        os.makedirs(f"maps/{namespace}")
+    # Check if the directories exists
+    for folder in ["maps", "logs", f"maps/{namespace}"]:
+        if not os.path.exists(folder):
+            os.makedirs(folder)
+    
+    # # Wait for the map topic to become available    
+    # map_topic = f"/{namespace}/map"
+    # print(f"Waiting for map topic {map_topic} to become available...")
+    # if not wait_for_topic(map_topic, timeout=15):
+    #     raise TimeoutError(f"Map topic {map_topic} not available after waiting 15 seconds.")
+    # time.sleep(1)
 
-    # Extract the map
-    extract_map_command = f"ros2 run nav2_map_server map_saver_cli -f maps/{namespace}/map --ros-args -r __ns:=/{namespace}"
-    extract_map_process = run_ros_command(extract_map_command, f"logs/{namespace}/map_log.txt")
-    extract_map_process.wait()
+    # # Remove the old map files
+    # for file in os.listdir(f"maps/{namespace}"):
+    #     if file.endswith(".pgm") or file.endswith(".yaml"):
+    #         os.remove(os.path.join(f"maps/{namespace}", file))
+
+    # # Extract the map
+    # extract_map_command = (
+    #     f"ros2 run nav2_map_server map_saver_cli -f maps/{namespace}/map "
+    #     f"--free 0.25 --occ 0.65 --fmt pgm "
+    #     f"--ros-args -r __ns:=/{namespace}"
+    # )
+    # # extract_map_command = f"ros2 run nav2_map_server map_saver_cli -f maps/{namespace}/map --ros-args -r __ns:=/{namespace}"
+    # extract_map_process = run_ros_command(extract_map_command, f"logs/{namespace}/map_log.txt")
+    # extract_map_process.wait()
+
+    # wait for the map to be saved
+    while not os.path.exists(f"maps/{namespace}/map.pgm"):
+        print(f"Waiting for map to be saved to maps/{namespace}/map.pgm...")
+        time.sleep(1)
+    print(f"Map saved to maps/{namespace}/map.pgm")
 
     # Load YAML file to get map metadata
     yaml_path = f"maps/{namespace}/map.yaml"
+    if not os.path.exists(yaml_path):
+        raise FileNotFoundError(f"Map YAML file not found at {yaml_path}.")
     with open(yaml_path, 'r') as f:
         map_info = yaml.safe_load(f)
 
@@ -190,15 +234,14 @@ def getMap(namespace: str = "robot1", size: int = 30) -> np.ndarray:
 
     # Load the map image
     img = cv2.imread(pgm_path, cv2.IMREAD_UNCHANGED)
-
+    if img is None:
+        raise RuntimeError(f"Failed to load image from {pgm_path}.")
+    
     # Rotate the image +270 degrees to match orientation of numpy array
     img = np.rot90(img, k=3)
 
     return img
 
-"""
-Isolates a local map of 7x7 centered around the robot's position.
-"""
 def isolateLocalMap(x: int, y: int, img: np.ndarray) -> np.ndarray:
     """
     Isolates a local map of 7x7 centered around the robot's position.
@@ -345,21 +388,21 @@ def get_macro_observations(all_robots: list[str], active_robots: list[str], init
         macro_obs['local_agent_map'][0, i, 4] = local_explorers_map
         macro_obs['local_agent_map'][0, i, 5] = local_goal_map
 
-        print(f"{robot_id} has the following local maps:")
+        # print(f"{robot_id} has the following local maps:")
 
-        plt.subplot(2, 2, 1)
-        plt.title(f"local exploration map {robot_id}")
-        plt.imshow(local_exploration_map)
-        plt.subplot(2, 2, 2)
-        plt.title(f"local occupancy map of {robot_id}")
-        plt.imshow(local_occupancy_map)
-        plt.subplot(2, 2, 3)
-        plt.title(f"local_goal map of {robot_id}")
-        plt.imshow(local_goal_map)
-        plt.subplot(2, 2, 4)
-        plt.title(f"local rescuer map of {robot_id}")
-        plt.imshow(local_rescuers_map)
-        plt.show()
+        # plt.subplot(2, 2, 1)
+        # plt.title(f"local exploration map {robot_id}")
+        # plt.imshow(local_exploration_map)
+        # plt.subplot(2, 2, 2)
+        # plt.title(f"local occupancy map of {robot_id}")
+        # plt.imshow(local_occupancy_map)
+        # plt.subplot(2, 2, 3)
+        # plt.title(f"local_goal map of {robot_id}")
+        # plt.imshow(local_goal_map)
+        # plt.subplot(2, 2, 4)
+        # plt.title(f"local rescuer map of {robot_id}")
+        # plt.imshow(local_rescuers_map)
+        # plt.show()
     return macro_obs
 
 if __name__ == "__main__":
