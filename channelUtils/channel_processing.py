@@ -127,64 +127,6 @@ def getPose(namespace: str = "robot1", initial_pose=[0,0,0]) -> tuple[int, int]:
 
     return x, y
 
-def occupancy_pool_downsample(image: np.ndarray, pool_size: int,
-                              occ_ratio_threshold: float = 0.1,
-                              free_ratio_threshold: float = 0.7) -> np.ndarray:
-    """
-    Downsamples an occupancy grid (with values 0, 205, 255) using a voting scheme.
-    
-    For each non-overlapping pool_size x pool_size block:
-      - If occupied fraction (value==0) >= occ_ratio_threshold, cell = 0 (occupied)
-      - Else if free fraction (value==255) >= free_ratio_threshold, cell = 255 (free)
-      - Otherwise, cell = 205 (unknown)
-    
-    Adjust the thresholds as needed.
-    """
-    h, w = image.shape
-    new_h = h // pool_size
-    new_w = w // pool_size
-    downsampled = np.empty((new_h, new_w), dtype=np.uint8)
-    
-    for i in range(new_h):
-        for j in range(new_w):
-            block = image[i * pool_size:(i + 1) * pool_size,
-                          j * pool_size:(j + 1) * pool_size]
-            total = block.size
-            occ_count = np.count_nonzero(block == 0)
-            free_count = np.count_nonzero(block == 255)
-            
-            occ_ratio = occ_count / total
-            free_ratio = free_count / total
-            
-            if occ_ratio >= occ_ratio_threshold:
-                downsampled[i, j] = 0
-            elif free_ratio >= free_ratio_threshold:
-                downsampled[i, j] = 255
-            else:
-                downsampled[i, j] = 205
-    return downsampled
-
-def wait_for_topic(topic, timeout=15):
-    """
-    Wait until the specified ROS2 topic appears in the topic list.
-    Returns True if the topic is found within the timeout period, else False.
-    """
-    start_time = time.time()
-    while time.time() - start_time < timeout:
-        try:
-            topics = subprocess.check_output("ros2 topic list", shell=True).decode("utf-8")
-        except Exception as e:
-            print("Error listing topics:", e)
-            time.sleep(1)
-            continue
-
-        if topic in topics:
-            print(f"Found topic {topic}")
-            print(f"It took {time.time() - start_time:.2f} seconds to find topic {topic}")
-            return True
-        time.sleep(1)
-    return False
-
 def getMap(namespace: str = "robot1", size: int = 30) -> np.ndarray:
     """
     Extracts the channels from the robot's map and saves them as images.
@@ -193,34 +135,11 @@ def getMap(namespace: str = "robot1", size: int = 30) -> np.ndarray:
     for folder in ["maps", "logs", f"maps/{namespace}"]:
         if not os.path.exists(folder):
             os.makedirs(folder)
-    
-    # # Wait for the map topic to become available    
-    # map_topic = f"/{namespace}/map"
-    # print(f"Waiting for map topic {map_topic} to become available...")
-    # if not wait_for_topic(map_topic, timeout=15):
-    #     raise TimeoutError(f"Map topic {map_topic} not available after waiting 15 seconds.")
-    # time.sleep(1)
-
-    # # Remove the old map files
-    # for file in os.listdir(f"maps/{namespace}"):
-    #     if file.endswith(".pgm") or file.endswith(".yaml"):
-    #         os.remove(os.path.join(f"maps/{namespace}", file))
-
-    # # Extract the map
-    # extract_map_command = (
-    #     f"ros2 run nav2_map_server map_saver_cli -f maps/{namespace}/map "
-    #     f"--free 0.25 --occ 0.65 --fmt pgm "
-    #     f"--ros-args -r __ns:=/{namespace}"
-    # )
-    # # extract_map_command = f"ros2 run nav2_map_server map_saver_cli -f maps/{namespace}/map --ros-args -r __ns:=/{namespace}"
-    # extract_map_process = run_ros_command(extract_map_command, f"logs/{namespace}/map_log.txt")
-    # extract_map_process.wait()
 
     # wait for the map to be saved
     while not os.path.exists(f"maps/{namespace}/map.pgm"):
         print(f"Waiting for map to be saved to maps/{namespace}/map.pgm...")
         time.sleep(1)
-    print(f"Map saved to maps/{namespace}/map.pgm")
 
     # Load YAML file to get map metadata
     yaml_path = f"maps/{namespace}/map.yaml"
@@ -239,6 +158,7 @@ def getMap(namespace: str = "robot1", size: int = 30) -> np.ndarray:
     
     # Rotate the image +270 degrees to match orientation of numpy array
     img = np.rot90(img, k=3)
+    img = cv2.flip(img, 1)
 
     return img
 
@@ -259,11 +179,11 @@ def isolateLocalMap(x: int, y: int, img: np.ndarray) -> np.ndarray:
     if local_map.shape[0] < 7:
         top_pad = (7 - local_map.shape[0]) // 2
         bottom_pad = 7 - local_map.shape[0] - top_pad
-        local_map = np.pad(local_map, ((top_pad, bottom_pad), (0, 0)), mode='constant', constant_values=205)
+        local_map = np.pad(local_map, ((top_pad, bottom_pad), (0, 0)), mode='constant', constant_values=0)
     if local_map.shape[1] < 7:
         left_pad = (7 - local_map.shape[1]) // 2
         right_pad = 7 - local_map.shape[1] - left_pad
-        local_map = np.pad(local_map, ((0, 0), (left_pad, right_pad)), mode='constant', constant_values=205)
+        local_map = np.pad(local_map, ((0, 0), (left_pad, right_pad)), mode='constant', constant_values=0)
 
     return local_map
 
@@ -345,33 +265,6 @@ def get_macro_observations(all_robots: list[str], active_robots: list[str], init
         macro_obs['global_agent_map'][0, i, 5] = explorers_map
         macro_obs['global_agent_map'][0, i, 6] = goal_map
         
-        # print(f"{robot_id} has the following maps:")
-        
-        # plt.subplot(2, 2, 1)
-        # plt.title(f"exploration map {robot_id}")
-        # plt.imshow(exploration_map)
-        # plt.subplot(2, 2, 2)
-        # plt.title(f"occupancy map of {robot_id}")
-        # plt.axis('off')
-        # plt.axis('equal')
-        # plt.xticks([])
-        # plt.yticks([])
-        # plt.tight_layout()
-        # plt.subplots_adjust(wspace=0.1)
-        # plt.imshow(occupancy_map)
-        # plt.subplot(2, 2, 3)
-        # plt.title(f"goal_map of {robot_id}")
-        # plt.axis('off')
-        # plt.axis('equal')
-        # plt.xticks([])
-        # plt.yticks([])
-        # plt.tight_layout()
-        # plt.imshow(goal_map)
-        # plt.subplot(2, 2, 4)
-        # plt.title(f"explorer map of {robot_id}")
-        # plt.imshow(explorers_map)
-        # plt.show()
-
         # Obtain local maps from their global counterparts:
         # 0. Exploration map, 1. Occupancy map, 2. Target map, 3. Rescuers map, 4. Explorers map, 5. Goal map
 
@@ -389,21 +282,6 @@ def get_macro_observations(all_robots: list[str], active_robots: list[str], init
         macro_obs['local_agent_map'][0, i, 4] = local_explorers_map
         macro_obs['local_agent_map'][0, i, 5] = local_goal_map
 
-        # print(f"{robot_id} has the following local maps:")
-
-        # plt.subplot(2, 2, 1)
-        # plt.title(f"local exploration map {robot_id}")
-        # plt.imshow(local_exploration_map)
-        # plt.subplot(2, 2, 2)
-        # plt.title(f"local occupancy map of {robot_id}")
-        # plt.imshow(local_occupancy_map)
-        # plt.subplot(2, 2, 3)
-        # plt.title(f"local_goal map of {robot_id}")
-        # plt.imshow(local_goal_map)
-        # plt.subplot(2, 2, 4)
-        # plt.title(f"local rescuer map of {robot_id}")
-        # plt.imshow(local_rescuers_map)
-        # plt.show()
     return macro_obs
 
 if __name__ == "__main__":

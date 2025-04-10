@@ -107,7 +107,16 @@ if __name__ == "__main__":
             slam_command = f"ros2 launch slam_toolbox online_async_multirobot_launch.py namespace:={id} use_sim_time:=True"
             slam_process = run_ros_command(slam_command, f"logs/{id}", "slam_log.txt")
             slam_processes.append(slam_process)
+
+
+        lowres_slam_processes = []
+        for id in robot_ids:
+            lowres_slam_command = f"ros2 launch slam_toolbox online_async_multirobot_launch.py namespace:={id} use_sim_time:=True resolution:=1"
+            lowres_slam_process = run_ros_command(lowres_slam_command, f"logs/{id}", "lowres_slam_log.txt")
+            lowres_slam_processes.append(lowres_slam_process)
+        
         time.sleep(5) # Wait for SLAM to stabilize
+
 
         print("Launching Nav components ...")
         # Get the directory of the folder holding the current script
@@ -162,7 +171,7 @@ if __name__ == "__main__":
         def robot_loop(robot_id):
             while True:
                 print(f"{robot_id} is in {robot_states[robot_id]} state.")
-
+                global macro_observations
                 active_robots = []
                 with state_lock:
                     if robot_states[robot_id] == "active":
@@ -176,8 +185,7 @@ if __name__ == "__main__":
                                 if r != robot_id and robot_states[r] == "active":
                                     active_robots.append(r)
                             ## Get Macro-Observations for all active robots
-                            macro_observation = cproc.get_macro_observations(robot_ids, active_robots, initial_poses, map_size=(width, height), target_pos=target_pos)
-                            plot_macro_obs(macro_observation, 0)
+                            macro_observations = cproc.get_macro_observations(robot_ids, active_robots, initial_poses, map_size=(width, height), target_pos=target_pos)
                             ## Currently just getting a random goal, #TODO: Get navigation goal from CATMiP, active agents do it together
                             print(f"Active robots are {active_robots}.")
                             new_nav_goals = get_nav_goal(n_robots = len(active_robots))
@@ -190,28 +198,28 @@ if __name__ == "__main__":
                             else: # Only one robot is active
                                 x_rel, y_rel = new_nav_goals[0]
                                   
-                if robot_states[robot_id] == "active":
-                    robot_pose = cproc.getPose(robot_id, initial_poses[robot_id])
-                    x_goal = robot_pose[0] + x_rel
-                    y_goal = robot_pose[1] + y_rel
+                # if robot_states[robot_id] == "active":
+                #     robot_pose = cproc.getPose(robot_id, initial_poses[robot_id])
+                #     x_goal = robot_pose[0] + x_rel
+                #     y_goal = robot_pose[1] + y_rel
                     
-                    goal_map = cproc.to_single_pose_map(int(x_goal), int(y_goal))
-                    cv2.imwrite(f"channels/{robot_id}/goal_map.png", goal_map)
+                #     goal_map = cproc.to_single_pose_map(int(x_goal), int(y_goal))
+                #     cv2.imwrite(f"channels/{robot_id}/goal_map.png", goal_map)
                     
-                    event = threading.Event()
+                #     event = threading.Event()
                     
-                    send_nav_goal(
-                        robot_id,
-                        x_goal - initial_poses[robot_id][0],
-                        y_goal - initial_poses[robot_id][1],
-                        event=event,
-                    )
-                    with state_lock:
-                        robot_states[robot_id] = "inactive"
+                #     send_nav_goal(
+                #         robot_id,
+                #         x_goal - initial_poses[robot_id][0],
+                #         y_goal - initial_poses[robot_id][1],
+                #         event=event,
+                #     )
+                #     with state_lock:
+                #         robot_states[robot_id] = "inactive"
 
-                    print(f"{robot_id} sent to ({x_goal}, {y_goal}) and is now inactive.")
+                #     print(f"{robot_id} sent to ({x_goal}, {y_goal}) and is now inactive.")
 
-                    event.wait()
+                #     event.wait()
                 
                 # Standby mode
                 with state_lock:
@@ -259,7 +267,9 @@ if __name__ == "__main__":
  
 
         while True:
-            time.sleep(1)
+            # plot_macro_obs(macro_observations, 0)
+
+            time.sleep(15)
     
     except Exception as e:
         print(e)
