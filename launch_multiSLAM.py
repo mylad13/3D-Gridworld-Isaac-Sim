@@ -22,25 +22,6 @@ It also closes the loop between Isaac Sim and CATMiP by:
 HOME = os.path.expanduser("~")
 ISAAC_SIM_PATH = os.path.join(HOME, "isaacsim")
 
-def launch_isaac_sim():
-    """Launch Isaac Sim with ROS 2 bridge."""
-
-    log_file = "logs/isaacsim_log.txt"
-    with open(log_file, "w") as f:
-        # Call load_isaacsim_stage python file
-        return subprocess.Popen(
-            [
-              os.path.join(ISAAC_SIM_PATH, "python.sh"), 
-              "isaacsimUtils/load_isaacsim_stage.py", 
-              "--scene", 
-              "omniverse://localhost/Projects/zero-to-slam/scene_turtle.usd"
-            ],
-            stdout=f, 
-            stderr=f, 
-            env=os.environ.copy(),
-            preexec_fn=os.setsid,  # Creates a new process group
-          )
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run multi SLAM with optional debug mode.")
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
@@ -108,6 +89,7 @@ if __name__ == "__main__":
             slam_process = run_ros_command(slam_command, f"logs/{id}", "slam_log.txt")
             slam_processes.append(slam_process)
 
+        time.sleep(5) # Wait for SLAM to stabilize
 
         lowres_slam_processes = []
         for id in robot_ids:
@@ -198,28 +180,28 @@ if __name__ == "__main__":
                             else: # Only one robot is active
                                 x_rel, y_rel = new_nav_goals[0]
                                   
-                # if robot_states[robot_id] == "active":
-                #     robot_pose = cproc.getPose(robot_id, initial_poses[robot_id])
-                #     x_goal = robot_pose[0] + x_rel
-                #     y_goal = robot_pose[1] + y_rel
+                if robot_states[robot_id] == "active":
+                    robot_pose = cproc.getPose(robot_id, initial_poses[robot_id])
+                    x_goal = robot_pose[0] + x_rel
+                    y_goal = robot_pose[1] + y_rel
                     
-                #     goal_map = cproc.to_single_pose_map(int(x_goal), int(y_goal))
-                #     cv2.imwrite(f"channels/{robot_id}/goal_map.png", goal_map)
+                    goal_map = cproc.to_single_pose_map(int(x_goal), int(y_goal))
+                    cv2.imwrite(f"channels/{robot_id}/goal_map.png", goal_map)
                     
-                #     event = threading.Event()
+                    event = threading.Event()
                     
-                #     send_nav_goal(
-                #         robot_id,
-                #         x_goal - initial_poses[robot_id][0],
-                #         y_goal - initial_poses[robot_id][1],
-                #         event=event,
-                #     )
-                #     with state_lock:
-                #         robot_states[robot_id] = "inactive"
+                    send_nav_goal(
+                        robot_id,
+                        x_goal - initial_poses[robot_id][0],
+                        y_goal - initial_poses[robot_id][1],
+                        event=event,
+                    )
+                    with state_lock:
+                        robot_states[robot_id] = "inactive"
 
-                #     print(f"{robot_id} sent to ({x_goal}, {y_goal}) and is now inactive.")
+                    print(f"{robot_id} sent to ({x_goal}, {y_goal}) and is now inactive.")
 
-                #     event.wait()
+                    event.wait()
                 
                 # Standby mode
                 with state_lock:
@@ -267,7 +249,7 @@ if __name__ == "__main__":
  
 
         while True:
-            # plot_macro_obs(macro_observations, 0)
+            plot_macro_obs(macro_observations, 0)
 
             time.sleep(15)
     
@@ -275,8 +257,7 @@ if __name__ == "__main__":
         print(e)
     finally:
         print("Shutting down processes...")
-        processes = [nav_process] + static_transform_processes + slam_processes + pose_subscribers + map_subscribers
-        # processes = [isaac_sim, nav_process] + slam_processes + pose_subscribers
+        processes = [nav_process] + static_transform_processes + slam_processes + lowres_slam_processes + pose_subscribers + map_subscribers
         for proc in processes:
             try:
                 os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
