@@ -22,7 +22,7 @@ class MapSaver(Node):
         self.map_received = False
 
         # Subscribe to the map topic in the given namespace
-        topic = f'/{namespace}/map_low'
+        topic = f'/{namespace}/map'
         self.subscription = self.create_subscription(
             OccupancyGrid,
             topic,
@@ -38,10 +38,8 @@ class MapSaver(Node):
         height = msg.info.height
 
         # Convert the OccupancyGrid data to a numpy array and reshape it.
-        # Note: nav2_map_server applies some conversions; below is a basic example.
         data = np.array(msg.data, dtype=np.int8).reshape(height, width)
-        # For demonstration, we convert unknown (-1), free (0), and occupied values:
-        # Typically, -1 (unknown) is set to gray, free (0) to white, occupied (>=100) to black.
+        
         img = np.zeros((height, width), dtype=np.uint8)
         img[data == -1] = 205   # Unknown
         img[data == 0] = 255    # Free

@@ -131,18 +131,13 @@ def getMap(namespace: str = "robot1", size: int = 30) -> np.ndarray:
     """
     Extracts the channels from the robot's map and saves them as images.
     """
-    # Check if the directories exists
-    for folder in ["maps", "logs", f"maps/{namespace}"]:
-        if not os.path.exists(folder):
-            os.makedirs(folder)
-
     # wait for the map to be saved
-    while not os.path.exists(f"maps/{namespace}/map.pgm"):
-        print(f"Waiting for map to be saved to maps/{namespace}/map.pgm...")
+    while not os.path.exists(f"maps/{namespace}_lowres/map.pgm"):
+        print(f"Waiting for map to be saved to maps/{namespace}_lowres/map.pgm...")
         time.sleep(1)
 
     # Load YAML file to get map metadata
-    yaml_path = f"maps/{namespace}/map.yaml"
+    yaml_path = f"maps/{namespace}_lowres/map.yaml"
     if not os.path.exists(yaml_path):
         raise FileNotFoundError(f"Map YAML file not found at {yaml_path}.")
     with open(yaml_path, 'r') as f:

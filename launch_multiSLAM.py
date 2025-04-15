@@ -93,7 +93,7 @@ if __name__ == "__main__":
 
         lowres_slam_processes = []
         for id in robot_ids:
-            lowres_slam_command = f"ros2 launch slam_toolbox online_async_multirobot_launch.py namespace:={id} use_sim_time:=True resolution:=1"
+            lowres_slam_command = f"ros2 launch slam_toolbox online_async_multirobot_launch.py namespace:={id}_lowres use_sim_time:=True resolution:=1"
             lowres_slam_process = run_ros_command(lowres_slam_command, f"logs/{id}", "lowres_slam_log.txt")
             lowres_slam_processes.append(lowres_slam_process)
         
@@ -119,7 +119,7 @@ if __name__ == "__main__":
 
         map_subscribers = []
         for id in robot_ids:
-            map_subscriber_command = f"python3 channelUtils/map_subscriber.py --namespace {id}"
+            map_subscriber_command = f"python3 channelUtils/map_subscriber.py --namespace {id}_lowres"
             map_subscriber_process = run_ros_command(map_subscriber_command, f"logs/{id}", "map_subscriber.txt")
             map_subscribers.append(map_subscriber_process)
 
@@ -142,7 +142,7 @@ if __name__ == "__main__":
             if not os.path.exists(dir_path):
                 os.makedirs(dir_path)
             cv2.imwrite(f"{dir_path}/goal_map.png", goal_map)
-        macro_observations = cproc.get_macro_observations(robot_ids, robot_ids, initial_poses, map_size=(width, height), target_pos=target_pos)
+        # macro_observations = cproc.get_macro_observations(robot_ids, robot_ids, initial_poses, map_size=(width, height), target_pos=target_pos)
         
         
         robot_states = {robot_id: "active" for robot_id in robot_ids}
@@ -153,7 +153,7 @@ if __name__ == "__main__":
         def robot_loop(robot_id):
             while True:
                 print(f"{robot_id} is in {robot_states[robot_id]} state.")
-                global macro_observations
+                # global macro_observations
                 active_robots = []
                 with state_lock:
                     if robot_states[robot_id] == "active":
@@ -168,6 +168,7 @@ if __name__ == "__main__":
                                     active_robots.append(r)
                             ## Get Macro-Observations for all active robots
                             macro_observations = cproc.get_macro_observations(robot_ids, active_robots, initial_poses, map_size=(width, height), target_pos=target_pos)
+                            plot_macro_obs(macro_observations, 0)
                             ## Currently just getting a random goal, #TODO: Get navigation goal from CATMiP, active agents do it together
                             print(f"Active robots are {active_robots}.")
                             new_nav_goals = get_nav_goal(n_robots = len(active_robots))
@@ -249,7 +250,7 @@ if __name__ == "__main__":
  
 
         while True:
-            plot_macro_obs(macro_observations, 0)
+            # plot_macro_obs(macro_observations, 0)
 
             time.sleep(15)
     
