@@ -2,7 +2,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from hetmarl.algorithms.utils.vit import ViT, Attention, PreNorm, Transformer, CrossAttention, FeedForward
+from catmipUtils.algorithms.utils.vit import ViT, Attention, PreNorm, Transformer, CrossAttention, FeedForward
 from einops.layers.torch import Rearrange
 from einops import rearrange, repeat
 import random

@@ -1,10 +1,10 @@
 import numpy as np
 import torch
 import torch.nn as nn
-from hetmarl.utils.util import get_gard_norm, huber_loss, mse_loss
-from hetmarl.utils.valuenorm import ValueNorm
-from hetmarl.algorithms.utils.util import check
-from hetmarl.algorithms.utils.util import get_connected_agents
+from catmipUtils.utils.util import get_gard_norm, huber_loss, mse_loss
+from catmipUtils.utils.valuenorm import ValueNorm
+from catmipUtils.algorithms.utils.util import check
+from catmipUtils.algorithms.utils.util import get_connected_agents
 
 class AMATTrainer:
     """

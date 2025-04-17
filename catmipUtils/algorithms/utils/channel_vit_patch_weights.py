@@ -19,8 +19,8 @@ import torch
 import torch.distributed as dist
 import torch.nn as nn
 
-from hetmarl.algorithms.utils.vit import Block
-from hetmarl.algorithms.utils.util import trunc_normal_
+from catmipUtils.algorithms.utils.vit import Block
+from catmipUtils.algorithms.utils.util import trunc_normal_
 
 
 class PatchEmbedPerChannel(nn.Module):

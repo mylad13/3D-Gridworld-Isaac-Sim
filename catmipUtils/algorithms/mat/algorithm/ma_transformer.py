@@ -5,14 +5,14 @@ import math
 import numpy as np
 from torch.distributions import Categorical
 # from .distributions import Bernoulli, Categorical, DiagGaussian
-from hetmarl.algorithms.utils.util import check, init
-from hetmarl.algorithms.utils.transformer_act import discrete_autoregreesive_act
-from hetmarl.algorithms.utils.transformer_act import discrete_parallel_act
-from hetmarl.algorithms.utils.transformer_act import continuous_autoregreesive_act
-from hetmarl.algorithms.utils.transformer_act import continuous_parallel_act
-from hetmarl.algorithms.utils.transformer_act import multidiscrete_autoregreesive_act
-from hetmarl.algorithms.utils.transformer_act import multidiscrete_parallel_act
-from hetmarl.algorithms.utils.channel_vit import ChannelVisionTransformer
+from catmipUtils.algorithms.utils.util import check, init
+from catmipUtils.algorithms.utils.transformer_act import discrete_autoregreesive_act
+from catmipUtils.algorithms.utils.transformer_act import discrete_parallel_act
+from catmipUtils.algorithms.utils.transformer_act import continuous_autoregreesive_act
+from catmipUtils.algorithms.utils.transformer_act import continuous_parallel_act
+from catmipUtils.algorithms.utils.transformer_act import multidiscrete_autoregreesive_act
+from catmipUtils.algorithms.utils.transformer_act import multidiscrete_parallel_act
+from catmipUtils.algorithms.utils.channel_vit import ChannelVisionTransformer
 from functools import partial
 
 import icecream as ic

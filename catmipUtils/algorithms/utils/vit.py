@@ -25,7 +25,7 @@ from functools import partial
 import torch
 import torch.nn as nn
 
-from hetmarl.algorithms.utils.util import trunc_normal_
+from catmipUtils.algorithms.utils.util import trunc_normal_
 
 
 def drop_path(x, drop_prob: float = 0.0, training: bool = False):

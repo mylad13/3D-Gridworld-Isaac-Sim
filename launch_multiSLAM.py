@@ -28,8 +28,17 @@ ISAAC_SIM_PATH = os.path.join(HOME, "isaacsim")
 if __name__ == "__main__":
     parser = get_config()
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
-    parser.add_argument("--num_agents", type=str, default="3", help="number of robots to use")
+    parser.add_argument("--num_agents", type=int, default="3", help="number of robots to use")
     parser.add_argument("--agent_types", nargs="+", type=str, default=["explorer", "explorer", "rescuer"], help="types of robots to use")
+    parser.add_argument('--scenario_name', type=str, default='simple_spread', help="Which scenario to run on")
+    parser.add_argument('--grid_size', type=int, default=19, help="map size")
+    parser.add_argument('--agent_view_size', type=int, default=7, help="depth the agent can view")
+    parser.add_argument('--max_steps', type=int, default=100, help="maximum steps in each episode")
+
+
+    # eval by time step
+    parser.add_argument('--use_time', default=False, action='store_true')
+    parser.add_argument('--max_timestep', default=240, type=float)
 
     args = parser.parse_args()
     if args.debug: print("In Debug mode.")

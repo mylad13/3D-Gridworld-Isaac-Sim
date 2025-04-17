@@ -11,11 +11,11 @@ seed_max=1
 echo "env is ${env}"
 for seed in `seq ${seed_max}`
 do
-    CUDA_VISIBLE_DEVICES=0 python launch_multislam.py\
+    CUDA_VISIBLE_DEVICES=0 python launch_multiSLAM.py \
       --env_name ${env} --algorithm_name ${algo} --experiment_name ${exp} --scenario_name ${scenario} \
       --num_agents ${num_agents} --n_rollout_threads 1 \
       --max_steps 500 --agent_view_size 7 \
-      --model_dir "/home/farjadnm/CATMiP/hetmarl/scripts/results/GridWorld/MiniGrid-SearchAndRescue-v0/amat/MAT_for_target_finding/wandb/run-20250415_151529-tu2yed55/files" \
+      --model_dir "/home/farjadnm/CATMiP/catmipUtils/scripts/results/GridWorld/MiniGrid-SearchAndRescue-v0/amat/MAT_for_target_finding/wandb/run-20250415_151529-tu2yed55/files" \
       --grid_size 30 --wandb_name "mylad" \
       --user_name "mylad"  \
       --use_wandb  --use_action_masking --action_size 3 \

@@ -2,7 +2,7 @@ import torch
 import numpy as np
 from catmipUtils.utils import update_linear_schedule
 from catmipUtils.utils import get_shape_from_obs_space, get_shape_from_act_space
-# from hetmarl.utils.adopt import ADOPT
+# from catmipUtils.utils.adopt import ADOPT
 from catmipUtils.algorithms.utils.util import check
 from catmipUtils.algorithms.mat.algorithm.ma_transformer import MultiAgentTransformer
 
@@ -55,13 +55,13 @@ class TransformerPolicy:
         if self.algorithm_name in ["amat", "mat", "mat_dec"]:
             from catmipUtils.algorithms.mat.algorithm.ma_transformer import MultiAgentTransformer as MAT
         elif self.algorithm_name == "mat_gru":
-            from hetmarl.algorithms.mat.algorithm.mat_gru import MultiAgentGRU as MAT
+            from catmipUtils.algorithms.mat.algorithm.mat_gru import MultiAgentGRU as MAT
         elif self.algorithm_name == "mat_decoder":
-            from hetmarl.algorithms.mat.algorithm.mat_decoder import MultiAgentDecoder as MAT
+            from catmipUtils.algorithms.mat.algorithm.mat_decoder import MultiAgentDecoder as MAT
         elif self.algorithm_name == "mat_encoder":
-            from hetmarl.algorithms.mat.algorithm.mat_encoder import MultiAgentEncoder as MAT
+            from catmipUtils.algorithms.mat.algorithm.mat_encoder import MultiAgentEncoder as MAT
         elif self.algorithm_name == "mancp":
-            from hetmarl.algorithms.mancp.algorithm.mancp_transformer import MANCPTransformer as MAT
+            from catmipUtils.algorithms.mancp.algorithm.mancp_transformer import MANCPTransformer as MAT
         else:
             raise NotImplementedError
 
