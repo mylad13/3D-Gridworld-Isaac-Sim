@@ -7,7 +7,6 @@ from onpolicy.algorithms.utils.invariant import AlterEncoder
 from einops.layers.torch import Rearrange
 from einops import rearrange, repeat
 from .util import init
-from icecream import ic
 
 class Flatten(nn.Module):
     def forward(self, x):

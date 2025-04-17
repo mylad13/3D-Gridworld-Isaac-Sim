@@ -155,7 +155,7 @@ if __name__ == "__main__":
                                 args.n_agent_types,
                                 device='cuda' if torch.cuda.is_available() else 'cpu')
         if args.model_dir is not None:
-                policy(args.model_dir)
+            policy.restore(args.model_dir)
 
         rnn_states = np.zeros((args.max_steps+1, 1, args.num_agents, args.recurrent_hidden_size), dtype=np.float32)
         masks = np.ones((1, args.num_agents, 1), dtype=np.float32) # masks become 0 when the robot is done

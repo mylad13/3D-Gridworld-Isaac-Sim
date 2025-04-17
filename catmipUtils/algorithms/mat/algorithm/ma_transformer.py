@@ -15,8 +15,6 @@ from catmipUtils.algorithms.utils.transformer_act import multidiscrete_parallel_
 from catmipUtils.algorithms.utils.channel_vit import ChannelVisionTransformer
 from functools import partial
 
-import icecream as ic
-
 def init_(m, gain=0.01, activate=False):
     if activate:
         gain = nn.init.calculate_gain('relu')
