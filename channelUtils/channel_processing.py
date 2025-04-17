@@ -9,6 +9,7 @@ import subprocess
 from typing import Optional
 import matplotlib.pyplot as plt
 import time
+from catmipUtils.utils import adjacent_cells
 
 def run_ros_command(command, log_file):
     """Run a ROS 2 command in a separate process"""
@@ -75,7 +76,7 @@ def to_exploration_map(img: np.ndarray, size: int = 30) -> np.ndarray:
 
     return exploration_binary
 
-def to_single_pose_map(x: int, y: int, size: Optional[int] = 30) -> None:
+def to_single_pose_map(x: int, y: int, size: Optional[int] = 30, traces = False) -> None:
     """
     Converts a map image to an single pose map.
     0 for every pixel except the given position, which is 255.
@@ -87,6 +88,10 @@ def to_single_pose_map(x: int, y: int, size: Optional[int] = 30) -> None:
 
     map = np.zeros((size, size), dtype=np.uint8) 
     map[y, x] = 255
+    if traces:
+        for cells in adjacent_cells(y, x, size, size, surround=True):
+            map[cells[0], cells[1]] = 64
+    
 
     return map
 
@@ -131,29 +136,30 @@ def getMap(namespace: str = "robot1", size: int = 30) -> np.ndarray:
     """
     Extracts the channels from the robot's map and saves them as images.
     """
-    # wait for the map to be saved
-    while not os.path.exists(f"maps/{namespace}_lowres/map.pgm"):
-        print(f"Waiting for map to be saved to maps/{namespace}_lowres/map.pgm...")
-        time.sleep(1)
+    # # wait for the map to be saved
+    # while not os.path.exists(f"maps/{namespace}_lowres/map.pgm"):
+    #     print(f"Waiting for map to be saved to maps/{namespace}_lowres/map.pgm...")
+    #     time.sleep(1)
 
     # Load YAML file to get map metadata
     yaml_path = f"maps/{namespace}_lowres/map.yaml"
-    if not os.path.exists(yaml_path):
-        raise FileNotFoundError(f"Map YAML file not found at {yaml_path}.")
-    with open(yaml_path, 'r') as f:
-        map_info = yaml.safe_load(f)
+    # if not os.path.exists(yaml_path):
+    #     print(f"Map YAML file not found at {yaml_path}.")
+    # else:
+    #     with open(yaml_path, 'r') as f:
+    #         map_info = yaml.safe_load(f)
 
     # Construct the full path to the pgm file
-    pgm_path = os.path.join(os.path.dirname(yaml_path), map_info["image"])
+    pgm_path = f"maps/{namespace}_lowres/map.pgm"
 
     # Load the map image
     img = cv2.imread(pgm_path, cv2.IMREAD_UNCHANGED)
     if img is None:
-        raise RuntimeError(f"Failed to load image from {pgm_path}.")
-    
-    # Rotate the image +270 degrees to match orientation of numpy array
-    img = np.rot90(img, k=3)
-    img = cv2.flip(img, 1)
+        print(f"Failed to load image from {pgm_path}.")
+    else:
+        # Rotate the image +270 degrees to match orientation of numpy array
+        img = np.rot90(img, k=3)
+        img = cv2.flip(img, 1)
 
     return img
 
@@ -174,15 +180,15 @@ def isolateLocalMap(x: int, y: int, img: np.ndarray) -> np.ndarray:
     if local_map.shape[0] < 7:
         top_pad = (7 - local_map.shape[0]) // 2
         bottom_pad = 7 - local_map.shape[0] - top_pad
-        local_map = np.pad(local_map, ((top_pad, bottom_pad), (0, 0)), mode='constant', constant_values=0)
+        local_map = np.pad(local_map, ((top_pad, bottom_pad), (0, 0)), mode='constant', constant_values=255)
     if local_map.shape[1] < 7:
         left_pad = (7 - local_map.shape[1]) // 2
         right_pad = 7 - local_map.shape[1] - left_pad
-        local_map = np.pad(local_map, ((0, 0), (left_pad, right_pad)), mode='constant', constant_values=0)
+        local_map = np.pad(local_map, ((0, 0), (left_pad, right_pad)), mode='constant', constant_values=255)
 
     return local_map
 
-def get_macro_observations(all_robots: list[str], active_robots: list[str], initial_poses, map_size, target_pos) -> dict[str, dict[str, np.ndarray]]:
+def get_macro_observations(all_robots: list[str], active_robots: list[str], initial_poses, map_size, target_pos):
     """
     Get macro-observations for all robots.
     robot_ids: List of robot namespaces
@@ -231,12 +237,15 @@ def get_macro_observations(all_robots: list[str], active_robots: list[str], init
 
         # Convert the map image to the different global channels:
         # 0. Exploration map, 1. Occupancy map, 2. Target map, 3. Ego-pose map 4. Rescuers map, 5. Explorers map, 6. Goal map
-        exploration_map = to_exploration_map(img, map_size[0])
-        
-        occupancy_map = to_occupancy_map(img, map_size[0])
+        if img is not None:
+            exploration_map = to_exploration_map(img, map_size[0])
+            occupancy_map = to_occupancy_map(img, map_size[0])
+        else:
+            exploration_map = np.zeros((map_size[0], map_size[1]), dtype=np.uint8)
+            occupancy_map = np.zeros((map_size[0], map_size[1]), dtype=np.uint8)
         
         if exploration_map[target_pos[1], target_pos[0]] == 255:
-            target_map = to_single_pose_map(target_pos[0], target_pos[1], map_size[0])
+            target_map = to_single_pose_map(target_pos[0], target_pos[1], map_size[0], traces=True)
         else:
             target_map = np.zeros((map_size[0], map_size[1]), dtype=np.uint8)
         
@@ -277,7 +286,10 @@ def get_macro_observations(all_robots: list[str], active_robots: list[str], init
         macro_obs['local_agent_map'][0, i, 4] = local_explorers_map
         macro_obs['local_agent_map'][0, i, 5] = local_goal_map
 
-    return macro_obs
+    # Normalize the maps to [0, 1]
+    macro_obs['global_agent_map'] = macro_obs['global_agent_map'] / 255.0
+    macro_obs['local_agent_map'] = macro_obs['local_agent_map'] / 255.0
+    return macro_obs, sorted_robots
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run channel processing for a robot.")

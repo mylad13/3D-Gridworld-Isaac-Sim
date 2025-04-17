@@ -7,8 +7,11 @@ import random
 import cv2
 import channelUtils.channel_processing as cproc
 from isaacsimUtils.ros_utils import run_ros_command, send_nav_goal
-from catmipUtils.utils import get_nav_goal, plot_macro_obs
+from catmipUtils.utils import get_nav_goal, plot_macro_obs, get_available_actions, get_action_and_observation_spaces
+from catmipUtils.config import get_config
 import threading
+import numpy as np
+import torch
 
 """
 This is the main file for the multi-robot SLAM simulation for CATMiP.
@@ -23,9 +26,9 @@ HOME = os.path.expanduser("~")
 ISAAC_SIM_PATH = os.path.join(HOME, "isaacsim")
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Run multi SLAM with optional debug mode.")
+    parser = get_config()
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
-    parser.add_argument("--n_agents", type=str, default="3", help="number of robots to use")
+    parser.add_argument("--num_agents", type=str, default="3", help="number of robots to use")
     parser.add_argument("--agent_types", nargs="+", type=str, default=["explorer", "explorer", "rescuer"], help="types of robots to use")
 
     args = parser.parse_args()
@@ -37,7 +40,7 @@ if __name__ == "__main__":
     n_explorer = 0
     n_rescuer = 0
     static_transform_processes = []
-    for i in range(int(args.n_agents)):
+    for i in range(int(args.num_agents)):
         if args.agent_types[i] == "rescuer":
             robot_ids.append(f"rescuer{n_rescuer+1}")
             initial_poses[f"rescuer{n_rescuer+1}"] = [3+i, 5, 0]
@@ -128,6 +131,26 @@ if __name__ == "__main__":
         print("Simulation is fully running! Ready to send navigation goals. CTRL C to close.")
         print()
 
+
+        ######################################################################################
+        ###--- Defining the policy networks ---###
+        from catmipUtils.algorithms.transformer_policy import TransformerPolicy
+        action_space, observation_space = get_action_and_observation_spaces(args.algorithm_name,
+                                                                            num_agents=args.num_agents,
+                                                                            n_agent_types=args.n_agent_types)
+        policy = TransformerPolicy(args,
+                                observation_space[0],
+                                observation_space[0],
+                                action_space[0],
+                                args.num_agents,
+                                args.n_agent_types,
+                                device='cuda' if torch.cuda.is_available() else 'cpu')
+        if args.model_dir is not None:
+                policy(args.model_dir)
+
+        rnn_states = np.zeros((args.max_steps+1, 1, args.num_agents, args.recurrent_hidden_size), dtype=np.float32)
+        masks = np.ones((1, args.num_agents, 1), dtype=np.float32) # masks become 0 when the robot is done
+
         ### Assuming Full Communication between all robots
         # Get Macro-Observations for all robots
 
@@ -142,44 +165,52 @@ if __name__ == "__main__":
             if not os.path.exists(dir_path):
                 os.makedirs(dir_path)
             cv2.imwrite(f"{dir_path}/goal_map.png", goal_map)
-        # macro_observations = cproc.get_macro_observations(robot_ids, robot_ids, initial_poses, map_size=(width, height), target_pos=target_pos)
-        
+        macro_observations, sorted_robots = cproc.get_macro_observations(robot_ids, robot_ids, initial_poses, map_size=(width, height), target_pos=target_pos)
         
         robot_states = {robot_id: "active" for robot_id in robot_ids}
-        shared_nav_goals = {robot_id: None for robot_id in robot_ids} 
+        shared_nav_goals = {robot_id: None for robot_id in robot_ids}
+        rnn_states = {robot_id: np.zeros((args.recurrent_hidden_size,), dtype=np.float32) for robot_id in robot_ids}
+        rnn_states_array = np.zeros((1, args.num_agents, args.recurrent_hidden_size), dtype=np.float32)
+        available_actions = np.ones((1, args.num_agents , 49), dtype=np.int32)
+
         state_lock = threading.Lock()
         
         
         def robot_loop(robot_id):
             while True:
                 print(f"{robot_id} is in {robot_states[robot_id]} state.")
-                # global macro_observations
+                global macro_observations
                 active_robots = []
-                with state_lock:
-                    if robot_states[robot_id] == "active":
-                        if shared_nav_goals[robot_id] is not None: # This means another robot has computed a goal for this robot
-                            x_rel, y_rel = shared_nav_goals[robot_id]
-                            print(f"{robot_id} has a shared goal: {shared_nav_goals[robot_id]}")
-                            shared_nav_goals[robot_id] = None
-                        else: # This robot is the one computing the goal
-                            active_robots.append(robot_id) # put robot_id first in the list
+                if robot_states[robot_id] == "active":
+                    if shared_nav_goals[robot_id] is not None: # This means another robot has computed a goal for this robot
+                        x_rel, y_rel = shared_nav_goals[robot_id]
+                        print(f"{robot_id} has a shared goal: {shared_nav_goals[robot_id]}")
+                        shared_nav_goals[robot_id] = None
+                    else: # This robot is the one computing the goal
+                        active_robots.append(robot_id) # put robot_id first in the list
+                        with state_lock:
                             for r in robot_ids:
                                 if r != robot_id and robot_states[r] == "active":
                                     active_robots.append(r)
-                            ## Get Macro-Observations for all active robots
-                            macro_observations = cproc.get_macro_observations(robot_ids, active_robots, initial_poses, map_size=(width, height), target_pos=target_pos)
-                            plot_macro_obs(macro_observations, 0)
-                            ## Currently just getting a random goal, #TODO: Get navigation goal from CATMiP, active agents do it together
-                            print(f"Active robots are {active_robots}.")
-                            new_nav_goals = get_nav_goal(n_robots = len(active_robots))
-                            if len(active_robots) > 1:
-                                for i, id in enumerate(active_robots):
-                                    shared_nav_goals[id] = new_nav_goals[i]
-                                    print(f"New navigation goal for {id}: {shared_nav_goals[id]}")
-                                x_rel, y_rel = new_nav_goals[0]
-                                shared_nav_goals[robot_id] = None
-                            else: # Only one robot is active
-                                x_rel, y_rel = new_nav_goals[0]
+                        ## Get Macro-Observations for all active robots
+                        macro_observations, sorted_robots = cproc.get_macro_observations(robot_ids, active_robots, initial_poses, map_size=(width, height), target_pos=target_pos)
+                        ## Get navigation goal from CATMiP, active agents do it together
+                        for i, r in enumerate(active_robots):
+                            available_actions[0][i] = get_available_actions(macro_observations, i, action_size=3, total_actions=49)
+                            rnn_states_array[0,i] = rnn_states[r]
+                        print(f"Active robots are {active_robots}.")
+                        
+                        new_nav_goals, new_rnn_states = get_nav_goal(policy, macro_observations, masks, rnn_states_array, available_actions, action_size=3)
+                        if len(active_robots) > 1:
+                            for i, id in enumerate(active_robots):
+                                rnn_states[id] = new_rnn_states[0,i]
+                                shared_nav_goals[id] = new_nav_goals[i]
+                                print(f"New navigation goal for {id}: {shared_nav_goals[id]}")
+                            x_rel, y_rel = new_nav_goals[0]
+                            shared_nav_goals[robot_id] = None
+                        else: # Only one robot is active
+
+                            x_rel, y_rel = new_nav_goals[0]
                                   
                 if robot_states[robot_id] == "active":
                     robot_pose = cproc.getPose(robot_id, initial_poses[robot_id])
@@ -250,7 +281,7 @@ if __name__ == "__main__":
  
 
         while True:
-            # plot_macro_obs(macro_observations, 0)
+            plot_macro_obs(macro_observations, 0)
 
             time.sleep(15)
     
