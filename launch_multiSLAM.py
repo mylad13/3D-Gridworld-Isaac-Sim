@@ -7,7 +7,7 @@ import random
 import cv2
 import channelUtils.channel_processing as cproc
 from isaacsimUtils.ros_utils import run_ros_command, send_nav_goal
-from catmipUtils.utils import get_nav_goal, plot_macro_obs, get_available_actions, get_action_and_observation_spaces
+from catmipUtils.utils import get_nav_goal, plot_macro_obs, get_available_actions, get_action_and_observation_spaces, adjacent_cells
 from catmipUtils.config import get_config
 import threading
 import numpy as np
@@ -31,7 +31,7 @@ if __name__ == "__main__":
     parser.add_argument("--num_agents", type=int, default="3", help="number of robots to use")
     parser.add_argument("--agent_types", nargs="+", type=str, default=["explorer", "explorer", "rescuer"], help="types of robots to use")
     parser.add_argument('--scenario_name', type=str, default='simple_spread', help="Which scenario to run on")
-    parser.add_argument('--grid_size', type=int, default=19, help="map size")
+    parser.add_argument('--grid_size', type=int, default=30, help="map size")
     parser.add_argument('--agent_view_size', type=int, default=7, help="depth the agent can view")
     parser.add_argument('--max_steps', type=int, default=100, help="maximum steps in each episode")
 
@@ -69,18 +69,19 @@ if __name__ == "__main__":
 
     # Choose a random target location for the robot
     ground_truth_occupancy_map = cv2.imread("groundTruth/occupancy_map30x30.png", cv2.IMREAD_GRAYSCALE)
-    height, width = ground_truth_occupancy_map.shape
+    # height, width = ground_truth_occupancy_map.shape
+    height = args.grid_size
+    width = args.grid_size
 
-    while True:
-        x = random.randint(0,width-1)
-        y = random.randint(0,height-1)
+    # while True:
+    #     x = random.randint(0,width-1)
+    #     y = random.randint(0,height-1)
 
-        if ground_truth_occupancy_map[y, x] == 0 and x >= 10 and y >= 10:
-            print(f"Chosen target: ({x}, {y})")
-            target_pos = (x, y)
-            target_map = cproc.to_single_pose_map(x, y)
-            cv2.imwrite(f"channels/global/target_map.png", target_map)
-            break
+    #     if ground_truth_occupancy_map[y, x] == 0 and x >= 10 and y >= 10:
+    #         print(f"Chosen target: ({x}, {y})")
+    #         target_pos = (x, y)
+    #         break
+    target_pos = (21, 9)
     
     ###--- Launch Processes ---###    
 
@@ -135,7 +136,7 @@ if __name__ == "__main__":
             map_subscriber_process = run_ros_command(map_subscriber_command, f"logs/{id}", "map_subscriber.txt")
             map_subscribers.append(map_subscriber_process)
 
-        time.sleep(5) # Wait for Nav and Pose Subscribers to stabilize
+        time.sleep(10) # Wait for Nav and Pose Subscribers to stabilize
 
         print("Simulation is fully running! Ready to send navigation goals. CTRL C to close.")
         print()
@@ -157,8 +158,6 @@ if __name__ == "__main__":
         if args.model_dir is not None:
             policy.restore(args.model_dir)
 
-        rnn_states = np.zeros((args.max_steps+1, 1, args.num_agents, args.recurrent_hidden_size), dtype=np.float32)
-        masks = np.ones((1, args.num_agents, 1), dtype=np.float32) # masks become 0 when the robot is done
 
         ### Assuming Full Communication between all robots
         # Get Macro-Observations for all robots
@@ -179,16 +178,19 @@ if __name__ == "__main__":
         robot_states = {robot_id: "active" for robot_id in robot_ids}
         shared_nav_goals = {robot_id: None for robot_id in robot_ids}
         rnn_states = {robot_id: np.zeros((args.recurrent_hidden_size,), dtype=np.float32) for robot_id in robot_ids}
+        masks = {robot_id: 1 for robot_id in robot_ids} # masks become 0 when the robot is done
+        masks_array = np.ones((1, args.num_agents, 1), dtype=np.float32) # masks become 0 when the robot is done
         rnn_states_array = np.zeros((1, args.num_agents, args.recurrent_hidden_size), dtype=np.float32)
         available_actions = np.ones((1, args.num_agents , 49), dtype=np.int32)
 
         state_lock = threading.Lock()
         mac_obs = None
+        sorted = None
         
         def robot_loop(robot_id):
             global mac_obs
+            global sorted
             while True:
-                print(f"{robot_id} is in {robot_states[robot_id]} state.")
                 active_robots = []
                 with state_lock:
                     if robot_states[robot_id] == "active":
@@ -204,12 +206,13 @@ if __name__ == "__main__":
                             ## Get Macro-Observations for all active robots
                             macro_observations, sorted_robots = cproc.get_macro_observations(robot_ids, active_robots, initial_poses, map_size=(width, height), target_pos=target_pos)
                             mac_obs = macro_observations.copy()
+                            sorted = sorted_robots.copy()
                             ## Get navigation goal from CATMiP, active agents do it together
                             for i, r in enumerate(active_robots):
                                 available_actions[0][i] = get_available_actions(macro_observations, i, action_size=3, total_actions=49)
                                 rnn_states_array[0,i] = rnn_states[r]
                             print(f"Active robots are {active_robots}.")
-                            new_nav_goals, new_rnn_states = get_nav_goal(policy, macro_observations, masks, rnn_states_array, available_actions, action_size=3)
+                            new_nav_goals, new_rnn_states = get_nav_goal(policy, macro_observations, masks_array, rnn_states_array, available_actions, action_size=3)
                             if len(active_robots) > 1:
                                 for i, id in enumerate(active_robots):
                                     rnn_states[id] = new_rnn_states[0,i]
@@ -218,10 +221,17 @@ if __name__ == "__main__":
                                 x_rel, y_rel = new_nav_goals[0][0][0]
                                 shared_nav_goals[robot_id] = None
                             else: # Only one robot is active
+                                print(f"New navigation goal for {robot_id}: {new_nav_goals[0][0][0]}")
                                 x_rel, y_rel = new_nav_goals[0][0][0]
                                   
                 if robot_states[robot_id] == "active":
                     robot_pose = cproc.getPose(robot_id, initial_poses[robot_id])
+                    if "rescuer" in robot_id and robot_pose in adjacent_cells(target_pos[0], target_pos[1], width, height):
+                        print(f"{robot_id} reached the target at ({robot_pose[0]}, {robot_pose[1]})!")
+                        with state_lock:
+                            robot_states[robot_id] = "inactive"
+                            masks[robot_id] = 0
+                        continue
                     print(f"{robot_id} pose: {robot_pose}")
                     x_goal = robot_pose[0] + x_rel
                     y_goal = robot_pose[1] + y_rel
@@ -290,7 +300,10 @@ if __name__ == "__main__":
  
 
         while True:
-            plot_macro_obs(mac_obs, 0)
+            # Find the index of rescuer1 in sorted
+            if sorted is not None:
+                rescuer1_index = sorted.index("rescuer1")
+                plot_macro_obs(mac_obs, rescuer1_index)
 
             time.sleep(30)
     

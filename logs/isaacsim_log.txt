@@ -1292,4 +1292,60 @@ If conda is desired please source setup_conda_env.sh in your python 3.10 conda e
 2025-04-17 17:48:42 [12,890ms] [Warning] [rtx.neuraylib.plugin] [MDLC:COMPILER]   1.0   MDLC   comp warn : omniverse://localhost/NVIDIA/Assets/Skies/Sky_Elements/materials/procedural/ProceduralSky.mdl(2763,11): C181 unused variable 'c_cirrus'
 2025-04-17 17:48:42 [12,890ms] [Warning] [rtx.neuraylib.plugin] [MDLC:COMPILER]   1.0   MDLC   comp warn : omniverse://localhost/NVIDIA/Assets/Skies/Sky_Elements/materials/procedural/ProceduralSky.mdl(3002,11): C183 unused parameter 'Longitude'
 2025-04-17 17:48:42 [12,890ms] [Warning] [rtx.neuraylib.plugin] [MDLC:COMPILER]   1.0   MDLC   comp warn : omniverse://localhost/NVIDIA/Assets/Skies/Sky_Elements/materials/procedural/ProceduralSky.mdl(3034,1): C225 unreferenced local function 'color ApplyMask(color, float3, uniform float, uniform float, uniform float, uniform float, uniform color, uniform float)' has been removed
-2025-04-17 17:48:42 [12,890ms] [Warning] [rtx.neuraylib.plugin] [MDLC:COMPILER]   1.0   MDLC   comp warn : omniverse://localhost/NVIDIA/A
+2025-04-17 17:48:42 [12,890ms] [Warning] [rtx.neuraylib.plugin] [MDLC:COMPILER]   1.0   MDLC   comp warn : omniverse://localhost/NVIDIA/Assets/Skies/Sky_Elements/materials/procedural/ProceduralSky.mdl(3048,1): C225 unreferenced local function 'float3 LatLong(float3)' has been removed
+2025-04-17 17:48:42 [12,890ms] [Warning] [rtx.neuraylib.plugin] [MDLC:COMPILER]   1.0   MDLC   comp warn : omniverse://localhost/NVIDIA/Assets/Skies/Sky_Elements/materials/procedural/ProceduralSky.mdl(3076,20): C183 unused parameter 'ExposureShaper'
+2025-04-17 17:48:42 [12,890ms] [Warning] [rtx.neuraylib.plugin] [MDLC:COMPILER]   1.0   MDLC   comp warn : omniverse://localhost/NVIDIA/Assets/Skies/Sky_Elements/materials/procedural/ProceduralSky.mdl(3128,19): C183 unused parameter 'SunIntensity'
+2025-04-17 17:48:42 [12,890ms] [Warning] [rtx.neuraylib.plugin] [MDLC:COMPILER]   1.0   MDLC   comp warn : omniverse://localhost/NVIDIA/Assets/Skies/Sky_Elements/materials/procedural/ProceduralSky.mdl(3129,19): C183 unused parameter 'GlobalIntensity'
+2025-04-17 17:48:42 [12,890ms] [Warning] [rtx.neuraylib.plugin] [MDLC:COMPILER]   1.0   MDLC   comp warn : omniverse://localhost/NVIDIA/Assets/Skies/Sky_Elements/materials/procedural/ProceduralSky.mdl(3321,19): C183 unused parameter 'Dummy'
+2025-04-17 17:48:42 [12,890ms] [Warning] [rtx.neuraylib.plugin] [MDLC:COMPILER]   1.0   MDLC   comp warn : omniverse://localhost/NVIDIA/Assets/Skies/Sky_Elements/materials/procedural/ProceduralSky.mdl(3334,19): C183 unused parameter 'SunColor'
+2025-04-17 17:48:45 [15,798ms] [Warning] [omni.physx.plugin] Detected an articulation at /World/turtlebot3_burger_1/base_footprint with more than 4 velocity iterations being added to a TGS scene.The related behavior changed recently, please consult the changelog. This warning will only print once.
+2025-04-17 18:29:09 [2,439,508ms] [Warning] [omni.kit.property.usd.references_widget] Build reload widget function is not available due to: No module named 'omni.kit.widget.live_session_management'
+2025-04-17 18:29:11 [2,441,941ms] [Warning] [omni.kit.property.usd.references_widget] Build reload widget function is not available due to: No module named 'omni.kit.widget.live_session_management'
+2025-04-17 18:29:12 [2,443,037ms] [Warning] [omni.kit.property.usd.references_widget] Build reload widget function is not available due to: No module named 'omni.kit.widget.live_session_management'
+2025-04-17 18:29:15 [2,445,201ms] [Warning] [omni.kit.property.usd.references_widget] Build reload widget function is not available due to: No module named 'omni.kit.widget.live_session_management'
+2025-04-17 18:29:15 [2,445,948ms] [Warning] [omni.kit.property.usd.references_widget] Build reload widget function is not available due to: No module named 'omni.kit.widget.live_session_management'
+2025-04-17 20:24:24 [9,354,693ms] [Warning] [omni.kit.property.usd.references_widget] Build reload widget function is not available due to: No module named 'omni.kit.widget.live_session_management'
+2025-04-17 20:24:24 [9,354,696ms] [Warning] [omni.kit.property.usd.references_widget] Build reload widget function is not available due to: No module named 'omni.kit.widget.live_session_management'
+2025-04-17 20:24:32 [9,362,818ms] [Warning] [omni.usd] Warning: in SdfPath at line 81 of /builds/omniverse/usd-ci/USD/pxr/usd/sdf/path.cpp -- Ill-formed SdfPath <>: syntax error
+
+2025-04-17 20:24:32 [9,362,818ms] [Warning] [omni.usd] Warning: in SdfPath at line 81 of /builds/omniverse/usd-ci/USD/pxr/usd/sdf/path.cpp -- Ill-formed SdfPath <>: syntax error
+
+2025-04-17 20:24:46 [9,376,472ms] [Warning] [omni.kit.property.usd.references_widget] Build reload widget function is not available due to: No module named 'omni.kit.widget.live_session_management'
+2025-04-17 20:24:46 [9,376,712ms] [Warning] [omni.kit.window.property.templates.simple_property_widget] PayloadReferenceWidget.build_items took 0.24092973116785288 seconds
+2025-04-17 20:24:56 [9,386,930ms] [Warning] [omni.kit.property.usd.references_widget] Build reload widget function is not available due to: No module named 'omni.kit.widget.live_session_management'
+2025-04-17 20:24:58 [9,388,200ms] [Warning] [omni.kit.property.usd.references_widget] Build reload widget function is not available due to: No module named 'omni.kit.widget.live_session_management'
+2025-04-17 20:24:58 [9,388,202ms] [Warning] [omni.kit.property.usd.references_widget] Build reload widget function is not available due to: No module named 'omni.kit.widget.live_session_management'
+2025-04-17 20:25:18 [9,408,546ms] [Warning] [omni.kit.property.usd.references_widget] Build reload widget function is not available due to: No module named 'omni.kit.widget.live_session_management'
+2025-04-17 20:25:18 [9,408,548ms] [Warning] [omni.kit.property.usd.references_widget] Build reload widget function is not available due to: No module named 'omni.kit.widget.live_session_management'
+2025-04-17 20:26:46 [9,496,954ms] [Warning] [omni.kit.property.usd.references_widget] Build reload widget function is not available due to: No module named 'omni.kit.widget.live_session_management'
+2025-04-17 20:26:46 [9,496,955ms] [Warning] [omni.kit.property.usd.references_widget] Build reload widget function is not available due to: No module named 'omni.kit.widget.live_session_management'
+2025-04-17 20:26:50 [9,500,850ms] [Warning] [omni.kit.property.usd.references_widget] Build reload widget function is not available due to: No module named 'omni.kit.widget.live_session_management'
+2025-04-17 20:26:50 [9,500,852ms] [Warning] [omni.kit.property.usd.references_widget] Build reload widget function is not available due to: No module named 'omni.kit.widget.live_session_management'
+2025-04-17 20:26:53 [9,503,514ms] [Warning] [omni.kit.property.usd.references_widget] Build reload widget function is not available due to: No module named 'omni.kit.widget.live_session_management'
+2025-04-17 20:26:53 [9,503,516ms] [Warning] [omni.kit.property.usd.references_widget] Build reload widget function is not available due to: No module named 'omni.kit.widget.live_session_management'
+2025-04-17 20:26:59 [9,509,597ms] [Warning] [omni.kit.property.usd.references_widget] Build reload widget function is not available due to: No module named 'omni.kit.widget.live_session_management'
+2025-04-17 20:26:59 [9,509,599ms] [Warning] [omni.kit.property.usd.references_widget] Build reload widget function is not available due to: No module named 'omni.kit.widget.live_session_management'
+2025-04-17 20:27:02 [9,512,671ms] [Warning] [omni.kit.property.usd.references_widget] Build reload widget function is not available due to: No module named 'omni.kit.widget.live_session_management'
+2025-04-17 20:27:02 [9,512,674ms] [Warning] [omni.kit.property.usd.references_widget] Build reload widget function is not available due to: No module named 'omni.kit.widget.live_session_management'
+2025-04-17 20:28:35 [9,605,064ms] [Warning] [omni.usd] Warning: in SdfPath at line 81 of /builds/omniverse/usd-ci/USD/pxr/usd/sdf/path.cpp -- Ill-formed SdfPath <>: syntax error
+
+2025-04-17 20:28:35 [9,605,064ms] [Warning] [omni.usd] Warning: in SdfPath at line 81 of /builds/omniverse/usd-ci/USD/pxr/usd/sdf/path.cpp -- Ill-formed SdfPath <>: syntax error
+
+2025-04-17 20:28:35 [9,605,065ms] [Warning] [omni.usd] Warning: in SdfPath at line 81 of /builds/omniverse/usd-ci/USD/pxr/usd/sdf/path.cpp -- Ill-formed SdfPath <>: syntax error
+
+2025-04-17 20:28:35 [9,605,065ms] [Warning] [omni.usd] Warning: in SdfPath at line 81 of /builds/omniverse/usd-ci/USD/pxr/usd/sdf/path.cpp -- Ill-formed SdfPath <>: syntax error
+
+2025-04-17 20:28:35 [9,605,066ms] [Warning] [omni.usd] Warning: in SdfPath at line 81 of /builds/omniverse/usd-ci/USD/pxr/usd/sdf/path.cpp -- Ill-formed SdfPath <>: syntax error
+
+2025-04-17 20:28:35 [9,605,066ms] [Warning] [omni.usd] Warning: in SdfPath at line 81 of /builds/omniverse/usd-ci/USD/pxr/usd/sdf/path.cpp -- Ill-formed SdfPath <>: syntax error
+
+2025-04-17 20:28:35 [9,605,067ms] [Warning] [omni.usd] Warning: in SdfPath at line 81 of /builds/omniverse/usd-ci/USD/pxr/usd/sdf/path.cpp -- Ill-formed SdfPath <>: syntax error
+
+2025-04-17 20:28:35 [9,605,067ms] [Warning] [omni.usd] Warning: in SdfPath at line 81 of /builds/omniverse/usd-ci/USD/pxr/usd/sdf/path.cpp -- Ill-formed SdfPath <>: syntax error
+
+2025-04-17 20:28:45 [9,615,384ms] [Warning] [omni.kit.property.usd.references_widget] Build reload widget function is not available due to: No module named 'omni.kit.widget.live_session_management'
+2025-04-17 20:28:45 [9,615,386ms] [Warning] [omni.kit.property.usd.references_widget] Build reload widget function is not available due to: No module named 'omni.kit.widget.live_session_management'
+2025-04-17 20:28:53 [9,623,905ms] [Warning] [omni.usd] Warning: in SdfPath at line 81 of /builds/omniverse/usd-ci/USD/pxr/usd/sdf/path.cpp -- Ill-formed SdfPath <>: syntax error
+
+2025-04-17 20:28:53 [9,623,905ms] [Warning] [omni.usd] Warning: in SdfPath at line 81 of /builds/omniverse/usd-ci/USD/pxr/usd/sdf/path.cpp -- Ill-formed SdfPath <>: syntax error
+

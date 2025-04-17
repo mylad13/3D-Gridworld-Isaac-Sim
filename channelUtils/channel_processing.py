@@ -76,26 +76,24 @@ def to_exploration_map(img: np.ndarray, size: int = 30) -> np.ndarray:
 
     return exploration_binary
 
-def to_single_pose_map(x: int, y: int, size: Optional[int] = 30, traces = False) -> None:
+def to_single_pose_map(x: int, y: int, size: Optional[int] = 30, traces = False, enlarge = False) -> None:
     """
     Converts a map image to an single pose map.
     0 for every pixel except the given position, which is 255.
     """
     
-    # This offest is moved to the getPose function
-    # x += 4 # Offset based on starting position in Isaac Sim
-    # y += 4
-
     map = np.zeros((size, size), dtype=np.uint8) 
     map[y, x] = 255
     if traces:
         for cells in adjacent_cells(y, x, size, size, surround=True):
             map[cells[0], cells[1]] = 64
-    
+    elif enlarge:
+        for cells in adjacent_cells(y, x, size, size, surround=True):
+            map[cells[0], cells[1]] = 255
 
     return map
 
-def to_multi_pose_map(coordinates: list[tuple[int, int]], size) -> None:
+def to_multi_pose_map(coordinates: list[tuple[int, int]], size, enlarge = False) -> None:
     """
     Converts a map image to a agent pose maps.
     0 for every pixel except agent positions, which is 255.
@@ -105,7 +103,9 @@ def to_multi_pose_map(coordinates: list[tuple[int, int]], size) -> None:
         # x += 4 # Offset based on starting position in Isaac Sim
         # y += 4
         map[y, x] = 255
-    
+        if enlarge:
+            for cells in adjacent_cells(y, x, size, size, surround=True):
+                map[cells[0], cells[1]] = 255
     return map
 
 def getPose(namespace: str = "robot1", initial_pose=[0,0,0]) -> tuple[int, int]:
@@ -163,7 +163,7 @@ def getMap(namespace: str = "robot1", size: int = 30) -> np.ndarray:
 
     return img
 
-def isolateLocalMap(x: int, y: int, img: np.ndarray) -> np.ndarray:
+def isolateLocalMap(x: int, y: int, img: np.ndarray, padding_value=0) -> np.ndarray:
     """
     Isolates a local map of 7x7 centered around the robot's position.
     """
@@ -180,11 +180,11 @@ def isolateLocalMap(x: int, y: int, img: np.ndarray) -> np.ndarray:
     if local_map.shape[0] < 7:
         top_pad = (7 - local_map.shape[0]) // 2
         bottom_pad = 7 - local_map.shape[0] - top_pad
-        local_map = np.pad(local_map, ((top_pad, bottom_pad), (0, 0)), mode='constant', constant_values=255)
+        local_map = np.pad(local_map, ((top_pad, bottom_pad), (0, 0)), mode='constant', constant_values=padding_value)
     if local_map.shape[1] < 7:
         left_pad = (7 - local_map.shape[1]) // 2
         right_pad = 7 - local_map.shape[1] - left_pad
-        local_map = np.pad(local_map, ((0, 0), (left_pad, right_pad)), mode='constant', constant_values=255)
+        local_map = np.pad(local_map, ((0, 0), (left_pad, right_pad)), mode='constant', constant_values=padding_value)
 
     return local_map
 
@@ -198,6 +198,7 @@ def get_macro_observations(all_robots: list[str], active_robots: list[str], init
     macro_obs['agent_class_identifier'] = np.zeros((1, len(all_robots), 2), dtype=int) # [1, 0] for rescuer, [0, 1] for explorer
     macro_obs['global_agent_map'] = np.zeros((1, len(all_robots), 7, *map_size), dtype=np.float32) # 7 channels, full map size
     macro_obs['local_agent_map'] = np.zeros((1, len(all_robots), 6, 7, 7), dtype=np.float32) # 6 channels, local map size
+    macro_obs['agent_position'] = np.zeros((1, len(all_robots), 2), dtype=int) # [x, y] coordinates
 
     robot_positions = {}
     rescuers = []
@@ -246,18 +247,22 @@ def get_macro_observations(all_robots: list[str], active_robots: list[str], init
         
         if exploration_map[target_pos[1], target_pos[0]] == 255:
             target_map = to_single_pose_map(target_pos[0], target_pos[1], map_size[0], traces=True)
+            print(f"Target found in {robot_id}'s map.")
         else:
             target_map = np.zeros((map_size[0], map_size[1]), dtype=np.uint8)
         
-        ego_pose_map = to_single_pose_map(robot_positions[robot_id][0], robot_positions[robot_id][1], map_size[0])
+        ego_pose_map = to_single_pose_map(robot_positions[robot_id][0], robot_positions[robot_id][1], map_size[0], enlarge=True)
         
         rescuers_map = np.zeros((map_size[0], map_size[1]), dtype=np.uint8)
         rescuer_positions = [robot_positions[rescuer] for rescuer in rescuers if rescuer != robot_id]
-        rescuers_map = to_multi_pose_map(rescuer_positions, map_size[0])
+        rescuers_map = to_multi_pose_map(rescuer_positions, map_size[0], enlarge=True)
+        pre_local_rescuers_map = to_multi_pose_map(rescuer_positions, map_size[0])
+
         
         explorers_map = np.zeros((map_size[0], map_size[1]), dtype=np.uint8)
         explorer_positions = [robot_positions[explorer] for explorer in explorers if explorer != robot_id]
-        explorers_map = to_multi_pose_map(explorer_positions, map_size[0])
+        explorers_map = to_multi_pose_map(explorer_positions, map_size[0], enlarge=True)
+        pre_local_explorers_map = to_multi_pose_map(explorer_positions, map_size[0])
 
         goal_map = cv2.imread(f"channels/{robot_id}/goal_map.png", cv2.IMREAD_GRAYSCALE)
         
@@ -275,8 +280,8 @@ def get_macro_observations(all_robots: list[str], active_robots: list[str], init
         local_occupancy_map = isolateLocalMap(robot_positions[robot_id][0], robot_positions[robot_id][1], occupancy_map)
         local_exploration_map = isolateLocalMap(robot_positions[robot_id][0], robot_positions[robot_id][1], exploration_map)
         local_target_map = isolateLocalMap(robot_positions[robot_id][0], robot_positions[robot_id][1], target_map)
-        local_rescuers_map = isolateLocalMap(robot_positions[robot_id][0], robot_positions[robot_id][1], rescuers_map)
-        local_explorers_map = isolateLocalMap(robot_positions[robot_id][0], robot_positions[robot_id][1], explorers_map)
+        local_rescuers_map = isolateLocalMap(robot_positions[robot_id][0], robot_positions[robot_id][1], pre_local_rescuers_map)
+        local_explorers_map = isolateLocalMap(robot_positions[robot_id][0], robot_positions[robot_id][1], pre_local_explorers_map)
         local_goal_map = isolateLocalMap(robot_positions[robot_id][0], robot_positions[robot_id][1], goal_map)
 
         macro_obs['local_agent_map'][0, i, 0] = local_exploration_map
@@ -285,6 +290,8 @@ def get_macro_observations(all_robots: list[str], active_robots: list[str], init
         macro_obs['local_agent_map'][0, i, 3] = local_rescuers_map
         macro_obs['local_agent_map'][0, i, 4] = local_explorers_map
         macro_obs['local_agent_map'][0, i, 5] = local_goal_map
+
+        macro_obs['agent_position'][0, i] = robot_positions[robot_id]
 
     # Normalize the maps to [0, 1]
     macro_obs['global_agent_map'] = macro_obs['global_agent_map'] / 255.0

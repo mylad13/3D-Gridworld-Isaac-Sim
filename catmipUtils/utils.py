@@ -49,9 +49,11 @@ def plot_macro_obs(macro_obs, agent_num):
     local_rescuers = macro_obs['local_agent_map'][0, agent_num, 3]
     local_explorers = macro_obs['local_agent_map'][0, agent_num, 4]
     local_goal = macro_obs['local_agent_map'][0, agent_num, 5]
+
+    agent_indication = macro_obs['agent_class_identifier'][0, agent_num].reshape(1, -1)
     
     fig, axs = plt.subplots(2, 7, figsize=(16, 8))
-    fig.suptitle('Macro Observation Space', fontsize=16)
+    fig.suptitle('Macro Observations', fontsize=16)
 
     # Global maps
     axs[0, 0].imshow(global_exploration, cmap='gray')
@@ -82,6 +84,8 @@ def plot_macro_obs(macro_obs, agent_num):
     axs[1, 4].set_title('Local Explorers')
     axs[1, 5].imshow(local_goal, cmap='gray')
     axs[1, 5].set_title('Local Goal')
+    axs[1, 6].imshow(agent_indication, cmap='gray')
+    axs[1, 6].set_title('Agent Class Identifier')
 
     # Hide unused subplots
     for i in range(6, 7):
@@ -118,7 +122,7 @@ def get_available_actions(macro_obs, agent_num, action_size=3, total_actions=49)
     global_occupied = macro_obs['global_agent_map'][0, agent_num, 1]
     global_ego_pose = macro_obs['global_agent_map'][0, agent_num, 3]
 
-    agent_pose = np.array(np.where(global_ego_pose == 1)).flatten()
+    agent_pose = macro_obs['agent_position'][0, agent_num]
     map_size = global_exploration.shape[0]
 
     available_actions = np.ones(total_actions, dtype=np.int32)
