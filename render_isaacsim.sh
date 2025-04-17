@@ -15,10 +15,10 @@ do
       --env_name ${env} --algorithm_name ${algo} --experiment_name ${exp} --scenario_name ${scenario} \
       --num_agents ${num_agents} --n_rollout_threads 1 \
       --max_steps 500 --agent_view_size 7 \
-      --model_dir "~/ros2_ws/src/3D-Gridworld-Isaac-Sim/models/catmip_latest_model/files" \
+      --model_dir "models/catmip_latest_model/files" \
       --grid_size 30 --wandb_name "mylad" \
       --user_name "mylad"  \
-      --use_wandb  --use_action_masking --action_size 3 \
+      --use_wandb --use_action_masking --action_size 3 \
       --n_head 1 --n_embd 192 --n_block 1 --recurrent_hidden_size 192 \
       --n_eval_rollout_threads 1 \
       --n_agent_types 2 --agent_types "explorer" "explorer" "rescuer" --agent_types_list 0 1 1 --detect_traces \

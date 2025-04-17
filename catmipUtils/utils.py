@@ -8,6 +8,9 @@ def _t2n(x): #tensor to numpy array
 
 def get_nav_goal(policy, macro_observations, masks, rnn_states, available_actions, action_size = 3):
     """Get navigation goals from a policy."""
+    for key in macro_observations.keys():
+        # merge the first two dimensions (num_threads and num_agents)
+        macro_observations[key] = np.concatenate(macro_observations[key], axis=0)
     action, rnn_states = policy.act(
                     macro_observations, # not using centralized observations
                     macro_observations,
@@ -28,6 +31,10 @@ def get_nav_goal(policy, macro_observations, masks, rnn_states, available_action
 
 def plot_macro_obs(macro_obs, agent_num):
     """Plot all the channels of the macro observation space."""
+
+    if macro_obs == None:
+        print("No macro observation available.")
+        return
     global_exploration = macro_obs['global_agent_map'][0, agent_num, 0]
     global_occupancy = macro_obs['global_agent_map'][0, agent_num, 1]
     global_target = macro_obs['global_agent_map'][0, agent_num, 2]

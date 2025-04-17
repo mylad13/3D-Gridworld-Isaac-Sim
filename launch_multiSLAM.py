@@ -174,7 +174,7 @@ if __name__ == "__main__":
             if not os.path.exists(dir_path):
                 os.makedirs(dir_path)
             cv2.imwrite(f"{dir_path}/goal_map.png", goal_map)
-        macro_observations, sorted_robots = cproc.get_macro_observations(robot_ids, robot_ids, initial_poses, map_size=(width, height), target_pos=target_pos)
+        # mac_obs, sorted_robots = cproc.get_macro_observations(robot_ids, robot_ids, initial_poses, map_size=(width, height), target_pos=target_pos)
         
         robot_states = {robot_id: "active" for robot_id in robot_ids}
         shared_nav_goals = {robot_id: None for robot_id in robot_ids}
@@ -183,46 +183,46 @@ if __name__ == "__main__":
         available_actions = np.ones((1, args.num_agents , 49), dtype=np.int32)
 
         state_lock = threading.Lock()
-        
+        mac_obs = None
         
         def robot_loop(robot_id):
+            global mac_obs
             while True:
                 print(f"{robot_id} is in {robot_states[robot_id]} state.")
-                global macro_observations
                 active_robots = []
-                if robot_states[robot_id] == "active":
-                    if shared_nav_goals[robot_id] is not None: # This means another robot has computed a goal for this robot
-                        x_rel, y_rel = shared_nav_goals[robot_id]
-                        print(f"{robot_id} has a shared goal: {shared_nav_goals[robot_id]}")
-                        shared_nav_goals[robot_id] = None
-                    else: # This robot is the one computing the goal
-                        active_robots.append(robot_id) # put robot_id first in the list
-                        with state_lock:
+                with state_lock:
+                    if robot_states[robot_id] == "active":
+                        if shared_nav_goals[robot_id] is not None: # This means another robot has computed a goal for this robot
+                            x_rel, y_rel = shared_nav_goals[robot_id]
+                            print(f"{robot_id} has a shared goal: {shared_nav_goals[robot_id]}")
+                            shared_nav_goals[robot_id] = None
+                        else: # This robot is the one computing the goal
+                            active_robots.append(robot_id) # put robot_id first in the list
                             for r in robot_ids:
                                 if r != robot_id and robot_states[r] == "active":
                                     active_robots.append(r)
-                        ## Get Macro-Observations for all active robots
-                        macro_observations, sorted_robots = cproc.get_macro_observations(robot_ids, active_robots, initial_poses, map_size=(width, height), target_pos=target_pos)
-                        ## Get navigation goal from CATMiP, active agents do it together
-                        for i, r in enumerate(active_robots):
-                            available_actions[0][i] = get_available_actions(macro_observations, i, action_size=3, total_actions=49)
-                            rnn_states_array[0,i] = rnn_states[r]
-                        print(f"Active robots are {active_robots}.")
-                        
-                        new_nav_goals, new_rnn_states = get_nav_goal(policy, macro_observations, masks, rnn_states_array, available_actions, action_size=3)
-                        if len(active_robots) > 1:
-                            for i, id in enumerate(active_robots):
-                                rnn_states[id] = new_rnn_states[0,i]
-                                shared_nav_goals[id] = new_nav_goals[i]
-                                print(f"New navigation goal for {id}: {shared_nav_goals[id]}")
-                            x_rel, y_rel = new_nav_goals[0]
-                            shared_nav_goals[robot_id] = None
-                        else: # Only one robot is active
-
-                            x_rel, y_rel = new_nav_goals[0]
+                            ## Get Macro-Observations for all active robots
+                            macro_observations, sorted_robots = cproc.get_macro_observations(robot_ids, active_robots, initial_poses, map_size=(width, height), target_pos=target_pos)
+                            mac_obs = macro_observations.copy()
+                            ## Get navigation goal from CATMiP, active agents do it together
+                            for i, r in enumerate(active_robots):
+                                available_actions[0][i] = get_available_actions(macro_observations, i, action_size=3, total_actions=49)
+                                rnn_states_array[0,i] = rnn_states[r]
+                            print(f"Active robots are {active_robots}.")
+                            new_nav_goals, new_rnn_states = get_nav_goal(policy, macro_observations, masks, rnn_states_array, available_actions, action_size=3)
+                            if len(active_robots) > 1:
+                                for i, id in enumerate(active_robots):
+                                    rnn_states[id] = new_rnn_states[0,i]
+                                    shared_nav_goals[id] = new_nav_goals[0][i][0]
+                                    print(f"New navigation goal for {id}: {shared_nav_goals[id]}")
+                                x_rel, y_rel = new_nav_goals[0][0][0]
+                                shared_nav_goals[robot_id] = None
+                            else: # Only one robot is active
+                                x_rel, y_rel = new_nav_goals[0][0][0]
                                   
                 if robot_states[robot_id] == "active":
                     robot_pose = cproc.getPose(robot_id, initial_poses[robot_id])
+                    print(f"{robot_id} pose: {robot_pose}")
                     x_goal = robot_pose[0] + x_rel
                     y_goal = robot_pose[1] + y_rel
                     
@@ -265,14 +265,14 @@ if __name__ == "__main__":
                 
                 if robot_states[robot_id] == "on-standby":
                     # Wait 5s, try group activation
-                    time.sleep(5)
+                    time.sleep(2)
                     if try_group_activation(): # If group activation is successful, continue
                         continue
                 
                 if robot_states[robot_id] == "on-standby":
                     # Wait another 5s if still on standby, try again
-                    print(f"{robot_id} waiting another 5s for partners...")
-                    time.sleep(5)
+                    print(f"{robot_id} waiting another 3s for partners...")
+                    time.sleep(3)
 
                 if robot_states[robot_id] == "on-standby":
                     if not try_group_activation():
@@ -290,9 +290,9 @@ if __name__ == "__main__":
  
 
         while True:
-            plot_macro_obs(macro_observations, 0)
+            plot_macro_obs(mac_obs, 0)
 
-            time.sleep(15)
+            time.sleep(30)
     
     except Exception as e:
         print(e)
