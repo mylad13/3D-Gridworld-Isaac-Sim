@@ -19,7 +19,7 @@ def run_ros_command(command, directory, log_file):
             stdout=f,
             stderr=f,
             executable="/bin/bash",
-            preexec_fn=os.setsid,  # Creates a new process group
+            preexec_fn=os.setpgrp,  # Creates a new process group
         )
 
 def send_nav_goal(robot_id, x, y, theta=0.0, event=None):

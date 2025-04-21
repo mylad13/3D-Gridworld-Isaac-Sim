@@ -11,12 +11,6 @@ import matplotlib.pyplot as plt
 import time
 from catmipUtils.utils import adjacent_cells
 
-def run_ros_command(command, log_file):
-    """Run a ROS 2 command in a separate process"""
-    with open(log_file, "w") as f:
-        return subprocess.Popen(command, shell=True, stdout=f, stderr=f, executable="/bin/bash")
-    
-
 def resize_image(img: np.ndarray, size: int) -> np.ndarray:
     """
     Resize an image to a square of size x size.
@@ -246,10 +240,12 @@ def get_macro_observations(all_robots: list[str], active_robots: list[str], init
             occupancy_map = np.zeros((map_size[0], map_size[1]), dtype=np.uint8)
         
         if exploration_map[target_pos[1], target_pos[0]] == 255:
-            target_map = to_single_pose_map(target_pos[0], target_pos[1], map_size[0], traces=True)
+            target_map = to_single_pose_map(target_pos[0], target_pos[1], map_size[0], enlarge=True)
+            pre_local_target_map = to_single_pose_map(target_pos[0], target_pos[1], map_size[0], traces=True)
             print(f"Target found in {robot_id}'s map.")
         else:
             target_map = np.zeros((map_size[0], map_size[1]), dtype=np.uint8)
+            pre_local_target_map = np.zeros((map_size[0], map_size[1]), dtype=np.uint8)
         
         ego_pose_map = to_single_pose_map(robot_positions[robot_id][0], robot_positions[robot_id][1], map_size[0], enlarge=True)
         
@@ -264,7 +260,7 @@ def get_macro_observations(all_robots: list[str], active_robots: list[str], init
         explorers_map = to_multi_pose_map(explorer_positions, map_size[0], enlarge=True)
         pre_local_explorers_map = to_multi_pose_map(explorer_positions, map_size[0])
 
-        goal_map = cv2.imread(f"channels/{robot_id}/goal_map.png", cv2.IMREAD_GRAYSCALE)
+        goal_map = cv2.imread(f"maps/{robot_id}/goal_map.png", cv2.IMREAD_GRAYSCALE)
         
         macro_obs['global_agent_map'][0, i, 0] = exploration_map
         macro_obs['global_agent_map'][0, i, 1] = occupancy_map
@@ -279,7 +275,7 @@ def get_macro_observations(all_robots: list[str], active_robots: list[str], init
 
         local_occupancy_map = isolateLocalMap(robot_positions[robot_id][0], robot_positions[robot_id][1], occupancy_map)
         local_exploration_map = isolateLocalMap(robot_positions[robot_id][0], robot_positions[robot_id][1], exploration_map)
-        local_target_map = isolateLocalMap(robot_positions[robot_id][0], robot_positions[robot_id][1], target_map)
+        local_target_map = isolateLocalMap(robot_positions[robot_id][0], robot_positions[robot_id][1], pre_local_target_map)
         local_rescuers_map = isolateLocalMap(robot_positions[robot_id][0], robot_positions[robot_id][1], pre_local_rescuers_map)
         local_explorers_map = isolateLocalMap(robot_positions[robot_id][0], robot_positions[robot_id][1], pre_local_explorers_map)
         local_goal_map = isolateLocalMap(robot_positions[robot_id][0], robot_positions[robot_id][1], goal_map)
@@ -299,94 +295,5 @@ def get_macro_observations(all_robots: list[str], active_robots: list[str], init
     return macro_obs, sorted_robots
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Run channel processing for a robot.")
-    parser.add_argument("--size", type=int, default=30, help="The size of the map to process.")
-    args = parser.parse_args()
-
-    namespaces = ["explorer1", "explorer2", "rescuer1"]
-    explorers = ["explorer1", "explorer2"]
-    rescuers = ["rescuer1"]
-    robot_positions = {}
-
-    # Local maps
-    for namespace in namespaces:
-
-        print("Processing maps for", namespace)
-
-        # Check if the directory exists
-        if not os.path.exists(f"channels/{namespace}"):
-            os.makedirs(f"channels/{namespace}")
-
-        # Add the currnet directory to the python path
-        sys.path.append(os.getcwd())
-
-        # Get the robot's pose
-        x, y = getPose(namespace)
-        robot_positions[namespace] = (x, y)
-
-        # Load the map image
-        img = getMap(namespace, args.size)
-
-        # Save the raw map image
-        cv2.imwrite(f"channels/{namespace}/raw_map.png", img)
-
-        # Convert the map image to an occupancy map
-        occupancy_map = to_occupancy_map(img)
-        cv2.imwrite(f"channels/{namespace}/occupancy_map.png", occupancy_map)
-
-        local_occupancy_map = isolateLocalMap(x, y, occupancy_map)
-        cv2.imwrite(f"channels/{namespace}/local_occupancy_map.png", local_occupancy_map)
-        
-        # Convert the map image to an exploration map
-        exploration_map = to_exploration_map(img)
-        cv2.imwrite(f"channels/{namespace}/exploration_map.png", exploration_map)
-
-        local_exploration_map = isolateLocalMap(x, y, exploration_map)
-        cv2.imwrite(f"channels/{namespace}/local_exploration_map.png", local_exploration_map)
-
-        # To ego pose map
-        ego_pose_map = to_single_pose_map(x, y, args.size)
-        cv2.imwrite(f"channels/{namespace}/ego_pose_map.png", ego_pose_map)
-
-        # Check if robot has found the target
-        # Load the target map and get the target's position
-        target_map = cv2.imread("channels/global/target_map.png", cv2.IMREAD_GRAYSCALE)
-        target_y, target_x = np.argwhere(target_map == 255)[0]
-
-        # Check if the target is in the robot's exploration map
-        if exploration_map[target_y, target_x] == 255:
-            print(f"{namespace} has found the target.")
-
-        # Check if the robot is at the target
-        if abs(x - target_x) <= 3 and abs(y - target_y) <= 3:
-            print(f"{namespace} is at the target.")
-
-        print("Processed maps for", namespace)
-    print()
-
-
-    #Global maps
-
-    # Check if the directory exists
-    if not os.path.exists(f"channels/global"):
-        os.makedirs(f"channels/global")
-
-    all_positions = robot_positions.values()
-    explorer_positions = [robot_positions[namespace] for namespace in explorers]
-    rescuer_positions = [robot_positions[namespace] for namespace in rescuers]
-
-    all_robots_map = to_multi_pose_map(all_positions, args.size)
-    cv2.imwrite(f"channels/global/all_robots_map.png", all_robots_map)
-
-    explorer_map = to_multi_pose_map(explorer_positions, args.size)
-    cv2.imwrite(f"channels/global/explorer_map.png", explorer_map)
-
-    rescuer_map = to_multi_pose_map(rescuer_positions, args.size)
-    cv2.imwrite(f"channels/global/rescuer_map.png", rescuer_map)
-
-    print("Processed global maps")
-
-
-
-
     
+    print("This is a utility file for processing channels in the multi-robot SLAM simulation.")

@@ -2,9 +2,25 @@ import random
 import numpy as np
 import matplotlib.pyplot as plt
 import gym
+import threading
+import os
 
 def _t2n(x): #tensor to numpy array
     return x.detach().cpu().numpy()
+
+def try_group_activation(robot_id, robot_ids, robot_states):
+    with threading.Lock():
+        others_on_standby = any(
+            r != robot_id and state == "on-standby"
+            for r, state in robot_states.items()
+        )
+        if others_on_standby:
+            for r in robot_ids:
+                if robot_states[r] == "on-standby":
+                    robot_states[r] = "active"
+                    print(f"{r} activating with others.")
+            return True
+        return False
 
 def get_nav_goal(policy, macro_observations, masks, rnn_states, available_actions, action_size = 3):
     """Get navigation goals from a policy."""
@@ -27,6 +43,7 @@ def get_nav_goal(policy, macro_observations, masks, rnn_states, available_action
     nav_goals = np.stack((row, col), axis=-1)
 
     return nav_goals, rnn_states
+
 
 
 def plot_macro_obs(macro_obs, agent_num):
