@@ -11,8 +11,8 @@ from isaacsimUtils.ros_utils import run_ros_command, send_nav_goal
 from catmipUtils.utils import get_nav_goal, plot_macro_obs, get_available_actions, get_action_and_observation_spaces, adjacent_cells, try_group_activation
 import channelUtils.channel_processing as cproc
 
-
-
+STANDBY_WAIT_INITIAL = 2
+STANDBY_WAIT_RETRY = 3
 
 class IsaacSimRunner(object):
     def __init__(self, config):
@@ -117,13 +117,13 @@ class IsaacSimRunner(object):
         from catmipUtils.algorithms.transformer_policy import TransformerPolicy
         action_space, observation_space = get_action_and_observation_spaces(self.args.algorithm_name,
                                                                             num_agents=self.num_agents,
-                                                                            n_agent_types=self.n_agent_types)
+                                                                            n_agent_types=self.args.n_agent_types)
         self.policy = TransformerPolicy(self.args,
                                 observation_space[0],
                                 observation_space[0],
                                 action_space[0],
                                 self.num_agents,
-                                self.n_agent_types,
+                                self.args.n_agent_types,
                                 device=self.device)
         if self.args.model_dir is not None:
             self.policy.restore(self.args.model_dir)
@@ -171,12 +171,12 @@ class IsaacSimRunner(object):
 
         robot_states = {robot_id: "active" for robot_id in self.robot_ids}
         shared_nav_goals = {robot_id: None for robot_id in self.robot_ids}
-        rnn_states = {robot_id: np.zeros((self.args.recurrent_hidden_size,), dtype=np.float32) for robot_id in robot_ids}
+        rnn_states = {robot_id: np.zeros((self.args.recurrent_hidden_size,), dtype=np.float32) for robot_id in self.robot_ids}
         masks = {robot_id: 1 for robot_id in self.robot_ids} # masks become 0 when the robot is done
         masks_array = np.ones((1, self.num_agents, 1), dtype=np.float32) # masks become 0 when the robot is done
         rnn_states_array = np.zeros((1, self.num_agents, self.args.recurrent_hidden_size), dtype=np.float32)
         available_actions = np.ones((1, self.num_agents , 49), dtype=np.int32)
-        macro_step_counter = 0
+        self.macro_step_counter = 0
         
         self.mac_obs = None
         self.sorted = None
@@ -184,7 +184,7 @@ class IsaacSimRunner(object):
         state_lock = threading.Lock()   
 
         def robot_loop(robot_id):
-            while macro_step_counter < self.args.episode_length and not self.target_reached:
+            while self.macro_step_counter < self.args.episode_length and not self.target_reached:
                 
                 active_robots = []
                 with state_lock:
@@ -209,8 +209,8 @@ class IsaacSimRunner(object):
                                 rnn_states_array[0,i] = rnn_states[r]
                             print(f"Active robots are {active_robots}.")
                             new_nav_goals, new_rnn_states = get_nav_goal(self.policy, macro_observations, masks_array, rnn_states_array, available_actions, action_size=3)
-                            macro_step_counter += 1
-                            print(f"Macro step counter: {macro_step_counter}")
+                            self.macro_step_counter += 1
+                            print(f"Macro step counter: {self.macro_step_counter}")
                             if len(active_robots) > 1:
                                 for i, id in enumerate(active_robots):
                                     rnn_states[id] = new_rnn_states[0,i]
@@ -232,8 +232,12 @@ class IsaacSimRunner(object):
                             masks[robot_id] = 0
                         continue
                     print(f"{robot_id} pose: {robot_pose}")
-                    x_goal = robot_pose[0] + x_rel
-                    y_goal = robot_pose[1] + y_rel
+                    
+                    if self.args.algorithm_name == "amat":
+                        x_goal = robot_pose[0] + x_rel
+                        y_goal = robot_pose[1] + y_rel
+                    else:
+                        raise NotImplementedError("Algorithm not implemented")
                     
                     goal_map = cproc.to_single_pose_map(int(x_goal), int(y_goal))
                     cv2.imwrite(f"maps/{robot_id}/goal_map.png", goal_map)
@@ -261,14 +265,14 @@ class IsaacSimRunner(object):
                 
                 if robot_states[robot_id] == "on-standby":
                     # Wait 5s, try group activation
-                    time.sleep(2)
+                    time.sleep(STANDBY_WAIT_INITIAL)
                     if try_group_activation(robot_id, self.robot_ids, robot_states): # If group activation is successful, continue
                         continue
                 
                 if robot_states[robot_id] == "on-standby":
                     # Wait another 5s if still on standby, try again
                     print(f"{robot_id} waiting another 3s for partners...")
-                    time.sleep(3)
+                    time.sleep(STANDBY_WAIT_RETRY)
 
                 if robot_states[robot_id] == "on-standby":
                     if not try_group_activation(robot_id, self.robot_ids, robot_states):
@@ -284,13 +288,24 @@ class IsaacSimRunner(object):
             t.start()
             robot_threads.append(t)
         
-        while True and not self.target_reached:
+        while not self.target_reached and self.macro_step_counter < self.args.episode_length: # Simplified condition
             # Find the index of rescuer1 in sorted
-            if self.sorted is not None:
+            if self.sorted is not None and "rescuer1" in self.sorted:
                 rescuer1_index = self.sorted.index("rescuer1")
                 plot_macro_obs(self.mac_obs, rescuer1_index)
 
             time.sleep(30)
+        
+        print("Episode condition met (target reached or max steps).")
+        # Wait for all robot threads to finish cleanly
+        print("Waiting for robot threads to complete...")
+        for t in robot_threads:
+            t.join(timeout=30) # Add a timeout to prevent indefinite blocking
+            if t.is_alive():
+                # Log or handle cases where threads don't stop as expected
+                print(f"Warning: Thread {t.name} did not terminate within timeout.")
+
+        print("All robot threads finished.")
 
     def cleanup(self):
         # Graceful shutdown of simulation and ROS2 nodes
@@ -332,11 +347,11 @@ class IsaacSimRunner(object):
     
     
 
-    
-    
-    def reset(self):
+    def run(self):
         raise NotImplementedError
 
+    def reset(self):
+        raise NotImplementedError
 
     def step(self, action):
         raise NotImplementedError

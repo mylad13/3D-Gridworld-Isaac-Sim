@@ -239,13 +239,13 @@ def get_macro_observations(all_robots: list[str], active_robots: list[str], init
             exploration_map = np.zeros((map_size[0], map_size[1]), dtype=np.uint8)
             occupancy_map = np.zeros((map_size[0], map_size[1]), dtype=np.uint8)
         
-        if exploration_map[target_pos[1], target_pos[0]] == 255:
-            target_map = to_single_pose_map(target_pos[0], target_pos[1], map_size[0], enlarge=True)
-            pre_local_target_map = to_single_pose_map(target_pos[0], target_pos[1], map_size[0], traces=True)
-            print(f"Target found in {robot_id}'s map.")
-        else:
-            target_map = np.zeros((map_size[0], map_size[1]), dtype=np.uint8)
-            pre_local_target_map = np.zeros((map_size[0], map_size[1]), dtype=np.uint8)
+        explored_mask = np.where(exploration_map == 255, 1, 0)
+
+        target_map = to_single_pose_map(target_pos[0], target_pos[1], map_size[0], enlarge=True)
+        target_map = target_map * explored_mask
+        pre_local_target_map = to_single_pose_map(target_pos[0], target_pos[1], map_size[0], traces=True)
+        pre_local_target_map = pre_local_target_map * explored_mask
+
         
         ego_pose_map = to_single_pose_map(robot_positions[robot_id][0], robot_positions[robot_id][1], map_size[0], enlarge=True)
         
