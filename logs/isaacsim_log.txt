@@ -1292,4 +1292,44 @@ If conda is desired please source setup_conda_env.sh in your python 3.10 conda e
 2025-04-22 13:58:15 [13,854ms] [Warning] [rtx.neuraylib.plugin] [MDLC:COMPILER]   1.0   MDLC   comp warn : omniverse://localhost/NVIDIA/Assets/Skies/Sky_Elements/materials/procedural/ProceduralSky.mdl(2763,11): C181 unused variable 'c_cirrus'
 2025-04-22 13:58:15 [13,854ms] [Warning] [rtx.neuraylib.plugin] [MDLC:COMPILER]   1.0   MDLC   comp warn : omniverse://localhost/NVIDIA/Assets/Skies/Sky_Elements/materials/procedural/ProceduralSky.mdl(3002,11): C183 unused parameter 'Longitude'
 2025-04-22 13:58:15 [13,854ms] [Warning] [rtx.neuraylib.plugin] [MDLC:COMPILER]   1.0   MDLC   comp warn : omniverse://localhost/NVIDIA/Assets/Skies/Sky_Elements/materials/procedural/ProceduralSky.mdl(3034,1): C225 unreferenced local function 'color ApplyMask(color, float3, uniform float, uniform float, uniform float, uniform float, uniform color, uniform float)' has been removed
-2025-04-22 13:58:15 [13,854ms] [Warning] [rtx.neuraylib.plugin] [MDLC:COMPILER]   1.0   MDLC   comp warn : omniverse://localhost/NVIDIA/A
+2025-04-22 13:58:15 [13,854ms] [Warning] [rtx.neuraylib.plugin] [MDLC:COMPILER]   1.0   MDLC   comp warn : omniverse://localhost/NVIDIA/Assets/Skies/Sky_Elements/materials/procedural/ProceduralSky.mdl(3048,1): C225 unreferenced local function 'float3 LatLong(float3)' has been removed
+2025-04-22 13:58:15 [13,854ms] [Warning] [rtx.neuraylib.plugin] [MDLC:COMPILER]   1.0   MDLC   comp warn : omniverse://localhost/NVIDIA/Assets/Skies/Sky_Elements/materials/procedural/ProceduralSky.mdl(3076,20): C183 unused parameter 'ExposureShaper'
+2025-04-22 13:58:15 [13,854ms] [Warning] [rtx.neuraylib.plugin] [MDLC:COMPILER]   1.0   MDLC   comp warn : omniverse://localhost/NVIDIA/Assets/Skies/Sky_Elements/materials/procedural/ProceduralSky.mdl(3128,19): C183 unused parameter 'SunIntensity'
+2025-04-22 13:58:15 [13,854ms] [Warning] [rtx.neuraylib.plugin] [MDLC:COMPILER]   1.0   MDLC   comp warn : omniverse://localhost/NVIDIA/Assets/Skies/Sky_Elements/materials/procedural/ProceduralSky.mdl(3129,19): C183 unused parameter 'GlobalIntensity'
+2025-04-22 13:58:15 [13,854ms] [Warning] [rtx.neuraylib.plugin] [MDLC:COMPILER]   1.0   MDLC   comp warn : omniverse://localhost/NVIDIA/Assets/Skies/Sky_Elements/materials/procedural/ProceduralSky.mdl(3321,19): C183 unused parameter 'Dummy'
+2025-04-22 13:58:15 [13,854ms] [Warning] [rtx.neuraylib.plugin] [MDLC:COMPILER]   1.0   MDLC   comp warn : omniverse://localhost/NVIDIA/Assets/Skies/Sky_Elements/materials/procedural/ProceduralSky.mdl(3334,19): C183 unused parameter 'SunColor'
+2025-04-22 13:58:20 [18,443ms] [Warning] [omni.physx.plugin] Detected an articulation at /World/turtlebot3_burger_1/base_footprint with more than 4 velocity iterations being added to a TGS scene.The related behavior changed recently, please consult the changelog. This warning will only print once.
+2025-04-22 14:51:30 [3,208,503ms] [Warning] [omni.usd] Warning: in SdfPath at line 81 of /builds/omniverse/usd-ci/USD/pxr/usd/sdf/path.cpp -- Ill-formed SdfPath <>: syntax error
+
+2025-04-22 14:51:30 [3,208,503ms] [Warning] [omni.usd] Warning: in SdfPath at line 81 of /builds/omniverse/usd-ci/USD/pxr/usd/sdf/path.cpp -- Ill-formed SdfPath <>: syntax error
+
+2025-04-22 14:57:51 [3,589,924ms] [Warning] [omni.usd] Warning: in SdfPath at line 81 of /builds/omniverse/usd-ci/USD/pxr/usd/sdf/path.cpp -- Ill-formed SdfPath <>: syntax error
+
+2025-04-22 14:57:51 [3,589,924ms] [Warning] [omni.usd] Warning: in SdfPath at line 81 of /builds/omniverse/usd-ci/USD/pxr/usd/sdf/path.cpp -- Ill-formed SdfPath <>: syntax error
+
+2025-04-22 16:10:51 [7,969,773ms] [Warning] [omni.usd] Warning: in SdfPath at line 81 of /builds/omniverse/usd-ci/USD/pxr/usd/sdf/path.cpp -- Ill-formed SdfPath <>: syntax error
+
+2025-04-22 16:10:51 [7,969,773ms] [Warning] [omni.usd] Warning: in SdfPath at line 81 of /builds/omniverse/usd-ci/USD/pxr/usd/sdf/path.cpp -- Ill-formed SdfPath <>: syntax error
+
+2025-04-22 16:13:06 [8,105,039ms] [Warning] [omni.usd] Warning: in SdfPath at line 81 of /builds/omniverse/usd-ci/USD/pxr/usd/sdf/path.cpp -- Ill-formed SdfPath <>: syntax error
+
+2025-04-22 16:13:06 [8,105,039ms] [Warning] [omni.usd] Warning: in SdfPath at line 81 of /builds/omniverse/usd-ci/USD/pxr/usd/sdf/path.cpp -- Ill-formed SdfPath <>: syntax error
+
+2025-04-22 16:15:29 [8,247,119ms] [Warning] [omni.kit.property.usd.references_widget] Build reload widget function is not available due to: No module named 'omni.kit.widget.live_session_management'
+2025-04-22 16:15:29 [8,247,121ms] [Warning] [omni.kit.property.usd.references_widget] Build reload widget function is not available due to: No module named 'omni.kit.widget.live_session_management'
+2025-04-22 16:15:39 [8,257,282ms] [Warning] [omni.usd] Warning: in SdfPath at line 81 of /builds/omniverse/usd-ci/USD/pxr/usd/sdf/path.cpp -- Ill-formed SdfPath <>: syntax error
+
+2025-04-22 16:15:39 [8,257,282ms] [Warning] [omni.usd] Warning: in SdfPath at line 81 of /builds/omniverse/usd-ci/USD/pxr/usd/sdf/path.cpp -- Ill-formed SdfPath <>: syntax error
+
+2025-04-22 16:15:39 [8,257,283ms] [Warning] [omni.usd] Warning: in SdfPath at line 81 of /builds/omniverse/usd-ci/USD/pxr/usd/sdf/path.cpp -- Ill-formed SdfPath <>: syntax error
+
+2025-04-22 16:15:39 [8,257,283ms] [Warning] [omni.usd] Warning: in SdfPath at line 81 of /builds/omniverse/usd-ci/USD/pxr/usd/sdf/path.cpp -- Ill-formed SdfPath <>: syntax error
+
+2025-04-22 16:15:39 [8,257,284ms] [Warning] [omni.usd] Warning: in SdfPath at line 81 of /builds/omniverse/usd-ci/USD/pxr/usd/sdf/path.cpp -- Ill-formed SdfPath <>: syntax error
+
+2025-04-22 16:15:39 [8,257,284ms] [Warning] [omni.usd] Warning: in SdfPath at line 81 of /builds/omniverse/usd-ci/USD/pxr/usd/sdf/path.cpp -- Ill-formed SdfPath <>: syntax error
+
+2025-04-22 16:15:39 [8,257,285ms] [Warning] [omni.usd] Warning: in SdfPath at line 81 of /builds/omniverse/usd-ci/USD/pxr/usd/sdf/path.cpp -- Ill-formed SdfPath <>: syntax error
+
+2025-04-22 16:15:39 [8,257,285ms] [Warning] [omni.usd] Warning: in SdfPath at line 81 of /builds/omniverse/usd-ci/USD/pxr/usd/sdf/path.cpp -- Ill-formed SdfPath <>: syntax error
+

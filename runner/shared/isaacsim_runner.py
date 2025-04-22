@@ -224,7 +224,7 @@ class IsaacSimRunner(object):
                                     
                 if robot_states[robot_id] == "active":
                     robot_pose = cproc.getPose(robot_id, self.initial_poses[robot_id])
-                    if "rescuer" in robot_id and robot_pose in adjacent_cells(self.target_pos[0], self.target_pos[1], self.width, self.height):
+                    if "rescuer" in robot_id and (robot_pose == self.target_pos or robot_pose in adjacent_cells(self.target_pos[0], self.target_pos[1], self.width, self.height)):
                         print(f"{robot_id} reached the target at ({robot_pose[0]}, {robot_pose[1]})!")
                         with state_lock:
                             self.target_reached = True

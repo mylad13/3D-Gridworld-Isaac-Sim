@@ -39,7 +39,7 @@ if __name__ == "__main__":
     parser.add_argument('--agent_view_size', type=int, default=7, help="depth the agent can view")
     parser.add_argument('--max_steps', type=int, default=100, help="maximum steps in each episode")
     parser.add_argument('--docker', action='store_true', help="if running in docker")
-    parser.add_argument('--target_pos', type=int, nargs=2, default=[21, 9], help="target position for the robots")
+    parser.add_argument('--target_pos', type=int, nargs=2, default=[21, 8], help="target position for the robots")
 
 
     # eval by time step
