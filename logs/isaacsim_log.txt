@@ -1333,3 +1333,4 @@ If conda is desired please source setup_conda_env.sh in your python 3.10 conda e
 
 2025-04-22 16:15:39 [8,257,285ms] [Warning] [omni.usd] Warning: in SdfPath at line 81 of /builds/omniverse/usd-ci/USD/pxr/usd/sdf/path.cpp -- Ill-formed SdfPath <>: syntax error
 
+[13450.317s] Simulation App Shutting Down

@@ -240,12 +240,12 @@ def get_macro_observations(all_robots: list[str], active_robots: list[str], init
             occupancy_map = np.zeros((map_size[0], map_size[1]), dtype=np.uint8)
         
         explored_mask = np.where(exploration_map == 255, 1, 0)
-        occupancy_mask = np.where(occupancy_map == 255, 0, 1)
+        # occupancy_mask = np.where(occupancy_map == 255, 0, 1)
 
         target_map = to_single_pose_map(target_pos[0], target_pos[1], map_size[0], enlarge=True)
-        target_map = target_map * explored_mask * occupancy_mask
+        target_map = target_map * explored_mask #* occupancy_mask
         pre_local_target_map = to_single_pose_map(target_pos[0], target_pos[1], map_size[0], traces=True)
-        pre_local_target_map = pre_local_target_map * explored_mask * occupancy_mask
+        pre_local_target_map = pre_local_target_map * explored_mask #* occupancy_mask
         
         ego_pose_map = to_single_pose_map(robot_positions[robot_id][0], robot_positions[robot_id][1], map_size[0], enlarge=True)
         
